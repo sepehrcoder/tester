@@ -47,10 +47,31 @@ Install these first:
 |---|---|---|
 | Node.js | 22.x | `node -v` |
 | npm | 10.x+ (ships with Node) | `npm -v` |
-| PostgreSQL | 16.x | `psql --version` |
+| PostgreSQL | 16.x, running locally | `psql --version` |
 
 Node/npm: https://nodejs.org (use the LTS installer, or `nvm install 22`)
-PostgreSQL: https://www.postgresql.org/download/ (or `brew install postgresql@16` on macOS, or your Linux distro's package manager)
+PostgreSQL: https://www.postgresql.org/download/ (or `brew install postgresql@16` on macOS, or your Linux distro's package manager) — make sure the server is actually started, not just installed.
+
+## Fast path: one script
+
+From the repository root:
+
+```bash
+./setup.sh              # fresh database via migrations + seed (recommended default)
+# or
+./setup.sh --from-dump  # same schema, but restores database-dump.sql for its data instead
+```
+
+This installs dependencies, creates the `marketplace` Postgres role/database
+if they don't already exist, copies each app's `.env.example` to its real
+`.env` (skipped if one's already there), and prepares the database. It's
+safe to re-run. If it can't figure out how to connect to Postgres as an
+admin on your system, it'll tell you exactly what to run manually — see the
+step-by-step version below for what it's doing under the hood.
+
+Skip to **"Run it"** once it finishes. The rest of this section is the
+manual, step-by-step version of the same thing, for when you'd rather do it
+by hand or the script doesn't fit your setup.
 
 ## 1. Install dependencies
 
@@ -69,35 +90,42 @@ psql -U postgres -c "CREATE USER marketplace WITH PASSWORD 'marketplace_dev' CRE
 psql -U postgres -c "CREATE DATABASE marketplace_dev OWNER marketplace;"
 ```
 
-(On macOS with Homebrew Postgres, or if you don't have a `postgres` superuser
-role, substitute whatever admin connection method your install uses — e.g.
-`psql postgres` with no `-U` on some setups.)
+Depending on how Postgres was installed, `-U postgres` may prompt for a
+password (Windows/most installers), may need `sudo -u postgres psql ...`
+instead (Linux distro packages, which default to peer authentication), or
+may not need `-U` at all (macOS Homebrew, where your own OS user is already
+a superuser). `setup.sh` tries all three automatically.
 
-You have two options to populate it:
-
-### Option A — restore the included dump (fastest, has real data already in it)
-
-```bash
-PGPASSWORD=marketplace_dev psql -h localhost -U marketplace -d marketplace_dev -f database-dump.sql
-```
-
-This restores the schema and a small, real dataset: 4 seeded accounts (admin,
-two dealers, one customer) plus a handful of requirements/leads/messages
-generated while verifying the backend during development. It's a genuine,
-already-exercised dataset, not synthetic noise — but if you'd rather start
-from a clean slate, use Option B instead.
-
-### Option B — fresh migrations + seed (clean slate)
+Then apply the schema:
 
 ```bash
 cd apps/api
-npx prisma migrate deploy
 npx prisma generate
+npx prisma migrate deploy
+```
+
+Now populate it — two options:
+
+### Option A — fresh seed (clean slate, recommended)
+
+```bash
 npx prisma db seed
 ```
 
-This creates just the 4 seeded accounts and one listing — see "Test
-credentials" below.
+Creates the 4 seeded accounts and one listing — see "Test credentials" below.
+
+### Option B — restore the included dump
+
+```bash
+cd ..   # back to repo root
+PGPASSWORD=marketplace_dev psql -h localhost -U marketplace -d marketplace_dev -f database-dump.sql
+```
+
+`database-dump.sql` is data-only (the schema already came from `migrate
+deploy` above) — it contains the same 4 seeded accounts plus a couple of
+extra requirements/leads/messages generated while verifying the backend
+during development. Functionally equivalent to Option A, just with a
+slightly more exercised dataset.
 
 ## 3. Configure environment variables
 
