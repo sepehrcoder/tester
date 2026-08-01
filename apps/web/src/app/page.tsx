@@ -1,21 +1,62 @@
 import { IconFilter, IconSearch, IconVerified } from "@repo/icons/web";
 import { AppNav } from "@/components/marketing/AppNav";
-import { PropertyCard } from "@/components/marketing/PropertyCard";
+import { PropertyCard, type Property } from "@/components/marketing/PropertyCard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-
-const listings = [
-  { price: "PKR 1,85,00,000", title: "5 Marla, 3 bed corner plot", location: "Bahria Town, Phase 7", tag: "3 bed", verified: true },
-  { price: "PKR 92,00,000", title: "10 Marla residential plot", location: "Gulberg Greens", tag: "Owner listed" },
-  { price: "PKR 3,20,00,000", title: "1 Kanal, west-facing villa", location: "DHA Phase 6", tag: "6 bed", verified: true },
-  { price: "PKR 1,10,00,000", title: "3 bed apartment, top floor", location: "Askari 11", tag: "3 bed", verified: true },
-  { price: "PKR 65,00,000", title: "5 Marla plot, near park", location: "Model Town Extension", tag: "Owner listed" },
-  { price: "PKR 2,45,00,000", title: "8 Marla, double-story house", location: "Wapda Town", tag: "5 bed", verified: true },
-];
+import { API_URL } from "@/lib/api";
 
 const filters = ["For sale", "For rent", "Houses", "Plots", "Apartments", "Verified only"];
 
-export default function Home() {
+function formatPKR(value: number) {
+  const rounded = Math.round(value).toString();
+  const last3 = rounded.slice(-3);
+  const rest = rounded.slice(0, -3);
+  const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," : "";
+  return `PKR ${grouped}${last3}`;
+}
+
+interface ApiListing {
+  id: string;
+  price: string;
+  title: string;
+  city: string;
+  area: string;
+  beds: number | null;
+  verified: boolean;
+  source: "DEALER" | "OWNER";
+}
+
+async function getListings(): Promise<{ listings: Property[]; live: boolean }> {
+  try {
+    const res = await fetch(`${API_URL}/listings?pageSize=6`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`API returned ${res.status}`);
+    const data: { items: ApiListing[] } = await res.json();
+    return {
+      live: true,
+      listings: data.items.map((item) => ({
+        price: formatPKR(Number(item.price)),
+        title: item.title,
+        location: `${item.area}, ${item.city}`,
+        verified: item.verified,
+        tag: item.beds ? `${item.beds} bed` : item.source === "OWNER" ? "Owner listed" : "Listing",
+      })),
+    };
+  } catch {
+    // API not running (e.g. static preview) — fall back to sample data so the page still demos the design.
+    return {
+      live: false,
+      listings: [
+        { price: "PKR 1,85,00,000", title: "5 Marla, 3 bed corner plot", location: "Bahria Town, Phase 7, Lahore", tag: "3 bed", verified: true },
+        { price: "PKR 92,00,000", title: "10 Marla residential plot", location: "Gulberg Greens, Lahore", tag: "Owner listed" },
+        { price: "PKR 3,20,00,000", title: "1 Kanal, west-facing villa", location: "DHA Phase 6, Lahore", tag: "6 bed", verified: true },
+      ],
+    };
+  }
+}
+
+export default async function Home() {
+  const { listings, live } = await getListings();
+
   return (
     <>
       <div className="aurora-backdrop" />
@@ -67,6 +108,12 @@ export default function Home() {
               </Badge>
             ))}
           </section>
+
+          {!live && (
+            <p className="mb-4 font-body text-xs text-ink-faint">
+              Showing sample listings — the API at {API_URL} isn&apos;t reachable right now.
+            </p>
+          )}
 
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {listings.map((l) => (
