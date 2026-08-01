@@ -1,0 +1,13 @@
+{
+  "name": "@repo/icons",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./web": "./src/web.tsx",
+    "./native": "./src/native.tsx"
+  },
+  "dependencies": {
+    "lucide-react": "^1.28.0",
+    "lucide-react-native": "^1.28.0"
+  }
+}
