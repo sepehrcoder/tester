@@ -37,6 +37,11 @@ export function AppNav() {
 
         {loading ? null : user ? (
           <>
+            {user.role === "ADMIN" && (
+              <Link href="/admin">
+                <Button variant="secondary">Admin console</Button>
+              </Link>
+            )}
             <span className="hidden font-body text-sm font-semibold text-ink sm:inline">{user.name}</span>
             <Button variant="ghost" onClick={logout}>
               Sign out
