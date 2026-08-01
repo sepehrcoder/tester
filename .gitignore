@@ -16,3 +16,6 @@ node_modules/
 # logs
 npm-debug.log*
 *.log
+
+# local database dumps (not source, don't commit)
+database-dump.sql
