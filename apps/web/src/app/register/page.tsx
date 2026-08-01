@@ -9,14 +9,26 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth, ApiError } from "@/providers/AuthProvider";
 
+const ROLES = ["CUSTOMER", "DEALER", "COMPANY", "TENANT", "PLAZA_MANAGER"] as const;
+type RegisterRole = (typeof ROLES)[number];
+
+const ROLE_LABEL: Record<RegisterRole, string> = {
+  CUSTOMER: "Buyer / Owner",
+  DEALER: "Dealer",
+  COMPANY: "Company",
+  TENANT: "Tenant",
+  PLAZA_MANAGER: "Plaza Manager",
+};
+
 export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
-  const [role, setRole] = useState<"CUSTOMER" | "DEALER" | "COMPANY">("CUSTOMER");
+  const [role, setRole] = useState<RegisterRole>("CUSTOMER");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [plazaName, setPlazaName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,6 +43,7 @@ export default function RegisterPage() {
         password,
         role,
         ...(role === "COMPANY" ? { companyName } : {}),
+        ...(role === "PLAZA_MANAGER" ? { plazaName } : {}),
       });
       const params = new URLSearchParams({ phone });
       if (result.devCode) params.set("devCode", result.devCode);
@@ -43,18 +56,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthShell title="Create an account" subtitle="Buying, selling, or dealing — pick what fits.">
-      <div className="mb-5 flex gap-2">
-        {(["CUSTOMER", "DEALER", "COMPANY"] as const).map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setRole(r)}
-            className={role === r ? "" : "opacity-60"}
-          >
-            <Badge variant={role === r ? "ember" : "ghost"}>
-              {r === "CUSTOMER" ? "Buyer / Owner" : r === "DEALER" ? "Dealer" : "Company"}
-            </Badge>
+    <AuthShell title="Create an account" subtitle="Buying, selling, dealing, renting, or managing — pick what fits.">
+      <div className="mb-5 flex flex-wrap gap-2">
+        {ROLES.map((r) => (
+          <button key={r} type="button" onClick={() => setRole(r)} className={role === r ? "" : "opacity-60"}>
+            <Badge variant={role === r ? "ember" : "ghost"}>{ROLE_LABEL[r]}</Badge>
           </button>
         ))}
       </div>
@@ -67,6 +73,15 @@ export default function RegisterPage() {
             name="companyName"
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
+            required
+          />
+        )}
+        {role === "PLAZA_MANAGER" && (
+          <TextField
+            label="Plaza / building name"
+            name="plazaName"
+            value={plazaName}
+            onChange={(e) => setPlazaName(e.target.value)}
             required
           />
         )}

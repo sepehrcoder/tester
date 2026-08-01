@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Plaza" ALTER COLUMN "city" DROP NOT NULL;

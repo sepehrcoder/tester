@@ -40,6 +40,11 @@ export class AuthService {
         'companyName is required when registering as a company',
       );
     }
+    if (dto.role === 'PLAZA_MANAGER' && !dto.plazaName) {
+      throw new BadRequestException(
+        'plazaName is required when registering as a plaza manager',
+      );
+    }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
@@ -53,6 +58,9 @@ export class AuthService {
         ...(dto.role === 'DEALER' ? { dealerProfile: { create: {} } } : {}),
         ...(dto.role === 'COMPANY'
           ? { companyOwned: { create: { name: dto.companyName! } } }
+          : {}),
+        ...(dto.role === 'PLAZA_MANAGER'
+          ? { plazasManaged: { create: { name: dto.plazaName! } } }
           : {}),
       },
     });

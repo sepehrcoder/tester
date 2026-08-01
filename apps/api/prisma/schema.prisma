@@ -21,6 +21,8 @@ enum Role {
   DEALER
   ADMIN
   COMPANY
+  TENANT
+  PLAZA_MANAGER
 }
 
 enum KycStatus {
@@ -102,6 +104,61 @@ enum ReportStatus {
   DISMISSED
 }
 
+// -- property management -----------------------------------------------
+
+enum FurnishingStatus {
+  FURNISHED
+  SEMI_FURNISHED
+  UNFURNISHED
+}
+
+enum UnitLayout {
+  STUDIO
+  ONE_BED
+  TWO_BED
+  THREE_BED
+  FOUR_BED_PLUS
+  SHOP
+  OFFICE
+}
+
+enum OccupancyStatus {
+  VACANT
+  OCCUPIED
+}
+
+enum LeaseStatus {
+  ACTIVE
+  ENDED
+  TERMINATED
+}
+
+enum RentPaymentStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum UtilityType {
+  ELECTRICITY
+  GAS
+  WATER
+  INTERNET
+  OTHER
+}
+
+enum BillStatus {
+  SUBMITTED
+  PAID
+  OVERDUE
+}
+
+enum MaintenanceStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
 // ---------------------------------------------------------------------------
 // Identity
 // ---------------------------------------------------------------------------
@@ -121,15 +178,21 @@ model User {
   dealerProfile DealerProfile?
   companyOwned  Company?       @relation("CompanyOwner")
 
+  plazasManaged        Plaza[]
+  rentalUnitsOwned     RentalUnit[]         @relation("UnitOwner")
+  leasesAsTenant       Lease[]              @relation("LeaseTenant")
+  rentPaymentsReviewed RentPayment[]        @relation("RentPaymentReviewer")
+  maintenanceRaised    MaintenanceRequest[] @relation("MaintenanceRaisedBy")
+
   listings          Listing[]
   requirements      Requirement[]
-  leadsAsDealer     Lead[]                     @relation("LeadDealer")
+  leadsAsDealer     Lead[]                    @relation("LeadDealer")
   leadAssignments   LeadAssignment[]
   leadStatusUpdates LeadStatusUpdate[]
   messages          Message[]
   conversations     ConversationParticipant[]
-  reviewsGiven      Review[]                   @relation("ReviewAuthor")
-  reviewsReceived   Review[]                   @relation("ReviewSubject")
+  reviewsGiven      Review[]                  @relation("ReviewAuthor")
+  reviewsReceived   Review[]                  @relation("ReviewSubject")
   notifications     Notification[]
   reports           Report[]
   refreshTokens     RefreshToken[]
@@ -325,6 +388,8 @@ model Conversation {
   lead      Lead?    @relation(fields: [leadId], references: [id])
   listingId String?
   listing   Listing? @relation(fields: [listingId], references: [id])
+  leaseId   String?
+  lease     Lease?   @relation(fields: [leaseId], references: [id])
   createdAt DateTime @default(now())
 
   participants ConversationParticipant[]
@@ -413,4 +478,136 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([actorId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Property management — an owner's rental portfolio (post-listing operations:
+// tenants, leases, rent, utilities, maintenance), and Plaza Manager accounts
+// that run the same operations across a whole building's worth of units,
+// optionally cross-linking each unit back to its real owner for a shared
+// read-only view ("auto-share").
+// ---------------------------------------------------------------------------
+
+// A building managed by a PLAZA_MANAGER account. One manager can run several.
+model Plaza {
+  id          String   @id @default(cuid())
+  managerId   String
+  manager     User     @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  name        String
+  city        String?
+  area        String?
+  totalFloors Int?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  units RentalUnit[]
+
+  @@index([managerId])
+}
+
+// A single rental unit under management. Either "standalone" (ownerId set,
+// plazaId null — an owner managing their own property directly) or embedded
+// in a Plaza (plazaId set; ownerId is set only once the plaza manager links
+// the real owner's account, which is what turns on the owner's shared view).
+model RentalUnit {
+  id          String           @id @default(cuid())
+  ownerId     String?
+  owner       User?            @relation("UnitOwner", fields: [ownerId], references: [id])
+  plazaId     String?
+  plaza       Plaza?           @relation(fields: [plazaId], references: [id], onDelete: Cascade)
+  floorNumber Int?
+  title       String
+  city        String
+  area        String?
+  unitLayout  UnitLayout
+  furnishing  FurnishingStatus @default(UNFURNISHED)
+  monthlyRent Decimal          @db.Decimal(14, 2)
+  occupancy   OccupancyStatus  @default(VACANT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  leases Lease[]
+
+  @@index([ownerId])
+  @@index([plazaId])
+}
+
+// A tenancy on a unit. Rent/deposit are snapshotted at signing so later
+// changes to RentalUnit.monthlyRent don't rewrite history.
+model Lease {
+  id            String      @id @default(cuid())
+  unitId        String
+  unit          RentalUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenantId      String
+  tenant        User        @relation("LeaseTenant", fields: [tenantId], references: [id])
+  startDate     DateTime
+  endDate       DateTime
+  rentAmount    Decimal     @db.Decimal(14, 2)
+  depositAmount Decimal?    @db.Decimal(14, 2)
+  agreementUrl  String?
+  status        LeaseStatus @default(ACTIVE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  rentPayments  RentPayment[]
+  utilityBills  UtilityBill[]
+  maintenance   MaintenanceRequest[]
+  conversations Conversation[]
+
+  @@index([unitId])
+  @@index([tenantId])
+}
+
+// One row per month, uploaded by the tenant as proof of payment, then
+// approved/rejected by whoever controls the unit (owner or plaza manager).
+model RentPayment {
+  id           String            @id @default(cuid())
+  leaseId      String
+  lease        Lease             @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  forMonth     DateTime
+  amount       Decimal           @db.Decimal(14, 2)
+  proofUrl     String?
+  status       RentPaymentStatus @default(SUBMITTED)
+  note         String?
+  reviewedById String?
+  reviewedBy   User?             @relation("RentPaymentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  createdAt    DateTime          @default(now())
+
+  @@index([leaseId])
+}
+
+// Utility bill records for a tenancy — uploaded by the tenant, tracked by
+// whoever controls the unit.
+model UtilityBill {
+  id          String      @id @default(cuid())
+  leaseId     String
+  lease       Lease       @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  type        UtilityType
+  billMonth   DateTime
+  amount      Decimal     @db.Decimal(14, 2)
+  documentUrl String?
+  status      BillStatus  @default(SUBMITTED)
+  createdAt   DateTime    @default(now())
+
+  @@index([leaseId])
+}
+
+// A lightweight maintenance/repair log a tenant or the unit's owner/manager
+// can raise against a lease, with an optional cost once quoted.
+model MaintenanceRequest {
+  id          String            @id @default(cuid())
+  leaseId     String
+  lease       Lease             @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  raisedById  String
+  raisedBy    User              @relation("MaintenanceRaisedBy", fields: [raisedById], references: [id])
+  title       String
+  description String?
+  cost        Decimal?          @db.Decimal(14, 2)
+  status      MaintenanceStatus @default(OPEN)
+  resolvedAt  DateTime?
+  createdAt   DateTime          @default(now())
+
+  @@index([leaseId])
 }

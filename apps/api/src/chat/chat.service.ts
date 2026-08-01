@@ -16,6 +16,7 @@ export class ChatService {
         messages: { orderBy: { createdAt: 'desc' }, take: 1 },
         lead: { include: { requirement: true } },
         listing: { select: { id: true, title: true } },
+        lease: { include: { unit: { select: { id: true, title: true } } } },
       },
       orderBy: { createdAt: 'desc' },
     });

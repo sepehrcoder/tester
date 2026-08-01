@@ -6,7 +6,8 @@ has nothing installed yet.
 
 ## What this is
 
-A three-way real estate marketplace (Customer / Dealer / Admin) with:
+A real estate marketplace and property-management platform with six account
+types (Customer, Dealer, Admin, Company, Tenant, Plaza Manager) built around:
 
 - **`apps/web`** — Next.js website
 - **`apps/mobile`** — Expo (React Native) mobile app
@@ -19,14 +20,43 @@ A three-way real estate marketplace (Customer / Dealer / Admin) with:
 This matters, so it's stated plainly rather than left for you to discover.
 
 **Built and working, end to end:**
-- The full backend API — auth (register/OTP/login/JWT for four roles:
-  customer, dealer, admin, and company), listings, the requirement →
-  broadcast lead → dealer accept (race-safe) → structured status updates →
-  6-hour SLA auto-release mechanic, chat (REST + WebSocket, with basic flag
-  detection), reviews, notifications, a **company/agency layer** (a company
-  account owns an invite code; dealers join it themselves; the company
-  gets rollup stats across every dealer who's joined), and an admin console
-  API (moderation, KYC review, flagged-message queue, audit log).
+- The full backend API — auth (register/OTP/login/JWT for six roles:
+  customer, dealer, admin, company, tenant, and plaza manager), listings,
+  the requirement → broadcast lead → dealer accept (race-safe) → structured
+  status updates → 6-hour SLA auto-release mechanic, chat (REST + WebSocket,
+  with basic flag detection), reviews, notifications, a **company/agency
+  layer** (a company account owns an invite code; dealers join it
+  themselves; the company gets rollup stats across every dealer who's
+  joined), a **property-management layer** (see below), and an admin
+  console API (moderation, KYC review, flagged-message queue, audit log).
+- **Property management** — a full post-listing rental operations system,
+  separate from the public marketplace listings:
+  - An owner (a Customer or Dealer account) can add a rental property they
+    manage directly (`RentalUnit`, standalone — layout, furnishing,
+    monthly rent), move a tenant in with a lease (start/end dates, rent,
+    deposit, an agreement link), and from then on sees that tenant's
+    contact info, rent-payment history, utility bills, and maintenance
+    requests, with approve/reject and mark-paid actions.
+  - A **Plaza Manager** account (register with the "Plaza Manager" type)
+    owns one or more `Plaza` buildings, each with any number of units
+    (floor number, layout — studio/1-bed/2-bed/3-bed/4+/shop/office —
+    furnishing, rent). The manager runs the exact same tenant/lease/
+    payment/bill/maintenance workflow as an owner, but across every unit
+    in every plaza they manage.
+  - A Plaza Manager can **link a unit to its real owner** by phone number
+    (an existing Customer/Dealer account) — from that point on, the same
+    live data (lease, tenant, payments, bills, maintenance) is visible to
+    both the manager and the real owner, not copied or exported, so it
+    stays in sync automatically ("auto-share").
+  - A **Tenant** account (its own role — register with the "Tenant" type)
+    sees its active lease, uploads a rent-payment record each month (with
+    an optional proof link) for the owner/manager to approve or reject,
+    uploads utility bills (electricity/gas/water/internet/other), raises
+    maintenance requests, and can message the owner/manager directly.
+  - Owner/manager ↔ tenant messaging reuses the same `Conversation`/
+    `Message` model as the rest of the app (REST, polled every few
+    seconds on the frontend) — nothing new to moderate, the admin
+    console's chat monitoring already covers it.
 - Four screens on web: Home (live listings from the API), Login, Register
   (now with a Buyer/Owner, Dealer, or Company account-type picker), Verify
   OTP.
@@ -36,12 +66,14 @@ This matters, so it's stated plainly rather than left for you to discover.
   (conversation list + a read-only thread viewer that highlights flagged
   messages), the flagged-message queue, reports with resolve/dismiss, and
   the audit log. All of it hits the real API — nothing mocked.
-- **Three more role-specific dashboards, also web-only and fully wired to
+- **Five more role-specific dashboards, also web-only and fully wired to
   the real API:**
   - `/dashboard` — the buyer/seller (customer) dashboard: an overview of
     open requirements and leads in progress, a table of every requirement
-    you've posted with the live status of its matched lead, and a table of
-    any properties you've listed yourself (FSBO).
+    you've posted with the live status of its matched lead, a table of any
+    properties you've listed yourself (FSBO), and a **"My rentals"** tab —
+    the property-management flow described above (add a rental property,
+    move a tenant in, review their payments/bills/maintenance, chat).
   - `/dealer` — the dealer's own console: performance stats (active leads,
     accepted/closed/conversion rate, rating), a table of every lead you've
     ever claimed, your own listings, and a Company tab to join or leave an
@@ -51,6 +83,16 @@ This matters, so it's stated plainly rather than left for you to discover.
     see a rollup (dealer count, active leads, conversion rate, total
     listings, average rating) plus a per-dealer table that drills into each
     dealer's full lead history and listings.
+  - `/tenant` — the tenant portal: register with the "Tenant" account type,
+    see your active lease and who to contact, submit rent payments and
+    utility bills, raise maintenance requests, and chat with your owner or
+    plaza manager.
+  - `/plaza` — the plaza manager console: register with the "Plaza Manager"
+    account type (this creates your first building), add more plazas, add
+    units per floor with layout/furnishing/rent, move tenants in, link a
+    unit's real owner by phone so records auto-share with them, and manage
+    the same payment/bill/maintenance/chat workflow as an owner — across
+    every unit you manage.
 - The same four customer-facing screens on mobile, gated with local
   component state (no navigation library wired up yet — see "Known
   limitations" below).
@@ -218,12 +260,27 @@ up yet), it's returned directly in the API response and shown on the
 Verify screen with a "Dev mode" label, so you can complete signup without
 needing a real phone.
 
-There's no seeded Company account (the dump predates that feature) — to try
-`/company`, register a new account and pick "Company" as the account type
-on the register page. That takes you to `/company`, where you'll see an
-invite code; sign in as an existing dealer (e.g. `+920000000002`), go to
-`/dealer/company`, and enter that code to join. The company account will
-then show that dealer's stats on `/company/dealers`.
+There's no seeded Company, Tenant, or Plaza Manager account (the dump
+predates those roles) — register new accounts to try them:
+
+- **Company**: register with account type "Company" → you land on
+  `/company` with an invite code. Sign in as an existing dealer (e.g.
+  `+920000000002`), go to `/dealer/company`, and enter that code to join.
+  The company account then shows that dealer's stats on `/company/dealers`.
+- **Property management (owner side, no plaza needed)**: sign in as the
+  seeded customer `+920000000004`, go to `/dashboard/rentals`, and add a
+  property. To move a tenant in you'll first need a Tenant account (see
+  next point) — the lease form asks for the tenant's phone number, and
+  that account must already exist with the Tenant role.
+- **Tenant**: register with account type "Tenant" (no extra fields needed).
+  Once an owner or plaza manager creates a lease using this account's
+  phone number, sign in and go to `/tenant` to see it.
+- **Plaza Manager**: register with account type "Plaza Manager" and a
+  building name — you land on `/plaza` with your first plaza already
+  created. Add a unit, then use its lease form with a Tenant account's
+  phone number to move someone in. To demo the owner auto-share, register
+  a separate Customer account and use "Link owner" on the unit detail page
+  with that account's phone number.
 
 ## Useful commands
 
@@ -246,8 +303,20 @@ open http://localhost:4000/docs
 - **OTP delivery is mocked.** No real SMS provider is connected — see
   `apps/api/src/auth/otp.service.ts` for where to plug one in (Twilio,
   etc.).
-- **No file storage.** Listing photos and dealer KYC documents expect a
+- **No file storage.** Listing photos, dealer KYC documents, lease
+  agreements, rent-payment proof, and utility-bill documents all expect a
   URL — there's no upload endpoint or S3-style storage wired up.
+- **Rent payments and utility bills are self-reported, not verified.** A
+  tenant marks a payment as made and links proof; the owner/plaza manager
+  approves or rejects it by eye. There's no payment gateway integration
+  (see "No billing/payments" below), so nothing enforces that the money
+  actually moved.
+- **The tenant/owner/plaza-manager chat is REST-polled, not WebSocket.**
+  It reuses the same `Conversation`/`Message` model as the rest of the app,
+  but the frontend polls every 4 seconds rather than opening a socket —
+  simple and reliable locally, but not instant, and worth swapping to the
+  existing WebSocket gateway (or a managed real-time service, see below)
+  before treating it as production chat.
 - **No real-time infrastructure decision made for production.** Chat uses a
   self-hosted Socket.io WebSocket gateway, which works fine for local
   development and any host that supports persistent connections (a VPS,

@@ -25,9 +25,11 @@ export class RegisterDto {
   @MinLength(8)
   password: string;
 
-  @ApiProperty({ enum: ['CUSTOMER', 'DEALER', 'COMPANY'] })
-  @IsIn(['CUSTOMER', 'DEALER', 'COMPANY'])
-  role: 'CUSTOMER' | 'DEALER' | 'COMPANY';
+  @ApiProperty({
+    enum: ['CUSTOMER', 'DEALER', 'COMPANY', 'TENANT', 'PLAZA_MANAGER'],
+  })
+  @IsIn(['CUSTOMER', 'DEALER', 'COMPANY', 'TENANT', 'PLAZA_MANAGER'])
+  role: 'CUSTOMER' | 'DEALER' | 'COMPANY' | 'TENANT' | 'PLAZA_MANAGER';
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -42,4 +44,14 @@ export class RegisterDto {
   @IsString()
   @MinLength(2)
   companyName?: string;
+
+  @ApiProperty({
+    required: false,
+    description:
+      'Required when role is PLAZA_MANAGER — the building/plaza name.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  plazaName?: string;
 }
