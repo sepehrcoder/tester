@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PageHeader } from "@/components/admin/PageHeader";
-import { Table } from "@/components/admin/Table";
-import { StatusBadge } from "@/components/admin/StatusBadge";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Table } from "@/components/shared/Table";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Badge } from "@/components/ui/Badge";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -24,7 +24,7 @@ const FILTERS = ["ALL", "PENDING", "APPROVED", "REJECTED", "FLAGGED"] as const;
 
 export default function AdminListingsPage() {
   const { accessToken } = useAuth();
-  const { data, loading, error, refetch } = useAdminFetch<Listing[]>("/admin/listings");
+  const { data, loading, error, refetch } = useAuthedFetch<Listing[]>("/admin/listings");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("PENDING");
   const [busyId, setBusyId] = useState<string | null>(null);
 

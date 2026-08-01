@@ -2,9 +2,9 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { PageHeader } from "@/components/admin/PageHeader";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { Badge } from "@/components/ui/Badge";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 import { IconArrowLeft } from "@repo/icons/web";
 
 interface Message {
@@ -18,7 +18,7 @@ interface Message {
 
 export default function AdminChatThreadPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, loading, error } = useAdminFetch<Message[]>(`/admin/chat/conversations/${id}/messages`);
+  const { data, loading, error } = useAuthedFetch<Message[]>(`/admin/chat/conversations/${id}/messages`);
 
   return (
     <div>

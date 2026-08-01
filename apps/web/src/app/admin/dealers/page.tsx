@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { PageHeader } from "@/components/admin/PageHeader";
-import { Table } from "@/components/admin/Table";
-import { StatusBadge } from "@/components/admin/StatusBadge";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Table } from "@/components/shared/Table";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -23,7 +23,7 @@ interface Dealer {
 
 export default function AdminDealersPage() {
   const { accessToken } = useAuth();
-  const { data, loading, error, refetch } = useAdminFetch<Dealer[]>("/admin/dealers");
+  const { data, loading, error, refetch } = useAuthedFetch<Dealer[]>("/admin/dealers");
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function moderate(id: string, status: "APPROVED" | "REJECTED") {

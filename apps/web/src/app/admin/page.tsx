@@ -1,8 +1,8 @@
 "use client";
 
-import { PageHeader } from "@/components/admin/PageHeader";
-import { StatCard } from "@/components/admin/StatCard";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { StatCard } from "@/components/shared/StatCard";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 
 interface Stats {
   totalUsers: number;
@@ -18,7 +18,7 @@ interface Stats {
 }
 
 export default function AdminDashboard() {
-  const { data, loading, error } = useAdminFetch<Stats>("/admin/stats");
+  const { data, loading, error } = useAuthedFetch<Stats>("/admin/stats");
 
   return (
     <div>

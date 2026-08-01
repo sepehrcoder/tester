@@ -25,12 +25,21 @@ export class RegisterDto {
   @MinLength(8)
   password: string;
 
-  @ApiProperty({ enum: ['CUSTOMER', 'DEALER'] })
-  @IsIn(['CUSTOMER', 'DEALER'])
-  role: 'CUSTOMER' | 'DEALER';
+  @ApiProperty({ enum: ['CUSTOMER', 'DEALER', 'COMPANY'] })
+  @IsIn(['CUSTOMER', 'DEALER', 'COMPANY'])
+  role: 'CUSTOMER' | 'DEALER' | 'COMPANY';
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Required when role is COMPANY — the agency name.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  companyName?: string;
 }

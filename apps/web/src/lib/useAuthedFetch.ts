@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
 
-export function useAdminFetch<T>(path: string) {
+export function useAuthedFetch<T>(path: string) {
   const { accessToken } = useAuth();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);

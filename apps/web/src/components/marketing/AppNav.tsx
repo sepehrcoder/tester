@@ -42,6 +42,21 @@ export function AppNav() {
                 <Button variant="secondary">Admin console</Button>
               </Link>
             )}
+            {user.role === "CUSTOMER" && (
+              <Link href="/dashboard">
+                <Button variant="secondary">My dashboard</Button>
+              </Link>
+            )}
+            {user.role === "DEALER" && (
+              <Link href="/dealer">
+                <Button variant="secondary">Dealer console</Button>
+              </Link>
+            )}
+            {user.role === "COMPANY" && (
+              <Link href="/company">
+                <Button variant="secondary">Company console</Button>
+              </Link>
+            )}
             <span className="hidden font-body text-sm font-semibold text-ink sm:inline">{user.name}</span>
             <Button variant="ghost" onClick={logout}>
               Sign out

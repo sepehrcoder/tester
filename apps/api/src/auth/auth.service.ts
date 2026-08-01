@@ -35,6 +35,12 @@ export class AuthService {
         'An account with this phone number already exists',
       );
 
+    if (dto.role === 'COMPANY' && !dto.companyName) {
+      throw new BadRequestException(
+        'companyName is required when registering as a company',
+      );
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
     const user = await this.prisma.user.create({
@@ -45,6 +51,9 @@ export class AuthService {
         passwordHash,
         role: dto.role,
         ...(dto.role === 'DEALER' ? { dealerProfile: { create: {} } } : {}),
+        ...(dto.role === 'COMPANY'
+          ? { companyOwned: { create: { name: dto.companyName! } } }
+          : {}),
       },
     });
 

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { PageHeader } from "@/components/admin/PageHeader";
-import { Table } from "@/components/admin/Table";
-import { StatusBadge } from "@/components/admin/StatusBadge";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Table } from "@/components/shared/Table";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -20,7 +20,7 @@ interface Report {
 
 export default function AdminReportsPage() {
   const { accessToken } = useAuth();
-  const { data, loading, error, refetch } = useAdminFetch<Report[]>("/admin/reports");
+  const { data, loading, error, refetch } = useAuthedFetch<Report[]>("/admin/reports");
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function act(id: string, action: "resolve" | "dismiss") {

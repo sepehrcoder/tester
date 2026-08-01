@@ -12,10 +12,11 @@ import { useAuth, ApiError } from "@/providers/AuthProvider";
 export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
-  const [role, setRole] = useState<"CUSTOMER" | "DEALER">("CUSTOMER");
+  const [role, setRole] = useState<"CUSTOMER" | "DEALER" | "COMPANY">("CUSTOMER");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -24,7 +25,13 @@ export default function RegisterPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const result = await register({ name, phone, password, role });
+      const result = await register({
+        name,
+        phone,
+        password,
+        role,
+        ...(role === "COMPANY" ? { companyName } : {}),
+      });
       const params = new URLSearchParams({ phone });
       if (result.devCode) params.set("devCode", result.devCode);
       router.push(`/verify-otp?${params.toString()}`);
@@ -38,20 +45,31 @@ export default function RegisterPage() {
   return (
     <AuthShell title="Create an account" subtitle="Buying, selling, or dealing — pick what fits.">
       <div className="mb-5 flex gap-2">
-        {(["CUSTOMER", "DEALER"] as const).map((r) => (
+        {(["CUSTOMER", "DEALER", "COMPANY"] as const).map((r) => (
           <button
             key={r}
             type="button"
             onClick={() => setRole(r)}
             className={role === r ? "" : "opacity-60"}
           >
-            <Badge variant={role === r ? "ember" : "ghost"}>{r === "CUSTOMER" ? "Buyer / Owner" : "Dealer"}</Badge>
+            <Badge variant={role === r ? "ember" : "ghost"}>
+              {r === "CUSTOMER" ? "Buyer / Owner" : r === "DEALER" ? "Dealer" : "Company"}
+            </Badge>
           </button>
         ))}
       </div>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <TextField label="Full name" name="name" value={name} onChange={(e) => setName(e.target.value)} required />
+        {role === "COMPANY" && (
+          <TextField
+            label="Company / agency name"
+            name="companyName"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            required
+          />
+        )}
         <TextField
           label="Phone number"
           name="phone"

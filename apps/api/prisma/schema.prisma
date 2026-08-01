@@ -20,6 +20,7 @@ enum Role {
   CUSTOMER
   DEALER
   ADMIN
+  COMPANY
 }
 
 enum KycStatus {
@@ -118,6 +119,7 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   dealerProfile DealerProfile?
+  companyOwned  Company?       @relation("CompanyOwner")
 
   listings          Listing[]
   requirements      Requirement[]
@@ -148,8 +150,27 @@ model DealerProfile {
   propertyTypes  PropertyType[] @default([])
   ratingAvg      Float          @default(0)
   ratingCount    Int            @default(0)
+  companyId      String?
+  company        Company?       @relation(fields: [companyId], references: [id])
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+
+  @@index([companyId])
+}
+
+// A company/agency account that owns many dealers. The owner (a User with
+// role COMPANY) signs in and sees a rollup of every dealer who joined via
+// the invite code — dealers opt in themselves, the company can't add them.
+model Company {
+  id         String   @id @default(cuid())
+  name       String
+  ownerId    String   @unique
+  owner      User     @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  inviteCode String   @unique @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  dealers DealerProfile[]
 }
 
 model OtpCode {

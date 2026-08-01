@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { PageHeader } from "@/components/admin/PageHeader";
-import { Table } from "@/components/admin/Table";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Table } from "@/components/shared/Table";
 import { Badge } from "@/components/ui/Badge";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 
 interface Conversation {
   id: string;
@@ -14,7 +14,7 @@ interface Conversation {
 }
 
 export default function AdminChatListPage() {
-  const { data, loading, error } = useAdminFetch<Conversation[]>("/admin/chat/conversations");
+  const { data, loading, error } = useAuthedFetch<Conversation[]>("/admin/chat/conversations");
 
   return (
     <div>

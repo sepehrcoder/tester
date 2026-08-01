@@ -1,9 +1,9 @@
 "use client";
 
-import { PageHeader } from "@/components/admin/PageHeader";
-import { Table } from "@/components/admin/Table";
-import { StatusBadge } from "@/components/admin/StatusBadge";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Table } from "@/components/shared/Table";
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 
 interface AdminLead {
   id: string;
@@ -15,7 +15,7 @@ interface AdminLead {
 }
 
 export default function AdminLeadsPage() {
-  const { data, loading, error } = useAdminFetch<AdminLead[]>("/admin/leads");
+  const { data, loading, error } = useAuthedFetch<AdminLead[]>("/admin/leads");
 
   return (
     <div>

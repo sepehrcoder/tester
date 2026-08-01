@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { PageHeader } from "@/components/admin/PageHeader";
-import { Table } from "@/components/admin/Table";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Table } from "@/components/shared/Table";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 
 interface FlaggedMessage {
   id: string;
@@ -15,7 +15,7 @@ interface FlaggedMessage {
 }
 
 export default function AdminFlaggedPage() {
-  const { data, loading, error } = useAdminFetch<FlaggedMessage[]>("/admin/chat/flagged");
+  const { data, loading, error } = useAuthedFetch<FlaggedMessage[]>("/admin/chat/flagged");
 
   return (
     <div>

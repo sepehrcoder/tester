@@ -12,6 +12,7 @@ import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateDealerProfileDto } from './dto/update-dealer-profile.dto';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
+import { JoinCompanyDto } from './dto/join-company.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -48,6 +49,29 @@ export class UsersController {
   @Post('me/dealer-profile/kyc')
   submitKyc(@CurrentUser() user: AuthenticatedUser, @Body() dto: SubmitKycDto) {
     return this.users.submitKyc(user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('DEALER')
+  @Post('me/dealer-profile/join-company')
+  joinCompany(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: JoinCompanyDto,
+  ) {
+    return this.users.joinCompany(user.id, dto.inviteCode);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('DEALER')
+  @Post('me/dealer-profile/leave-company')
+  leaveCompany(@CurrentUser() user: AuthenticatedUser) {
+    return this.users.leaveCompany(user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/stats')
+  myStats(@CurrentUser() user: AuthenticatedUser) {
+    return this.users.myStats(user);
   }
 
   @Get(':id/public')

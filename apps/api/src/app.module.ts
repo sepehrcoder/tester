@@ -13,6 +13,7 @@ import { ChatModule } from './chat/chat.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
+import { CompanyModule } from './company/company.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AdminModule } from './admin/admin.module';
     ReviewsModule,
     NotificationsModule,
     AdminModule,
+    CompanyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,8 +1,8 @@
 "use client";
 
-import { PageHeader } from "@/components/admin/PageHeader";
-import { Table } from "@/components/admin/Table";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Table } from "@/components/shared/Table";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 
 interface AuditEntry {
   id: string;
@@ -14,7 +14,7 @@ interface AuditEntry {
 }
 
 export default function AdminAuditLogPage() {
-  const { data, loading, error } = useAdminFetch<AuditEntry[]>("/admin/audit-log");
+  const { data, loading, error } = useAuthedFetch<AuditEntry[]>("/admin/audit-log");
 
   return (
     <div>

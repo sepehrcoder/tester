@@ -19,33 +19,54 @@ A three-way real estate marketplace (Customer / Dealer / Admin) with:
 This matters, so it's stated plainly rather than left for you to discover.
 
 **Built and working, end to end:**
-- The full backend API — auth (register/OTP/login/JWT), listings, the
-  requirement → broadcast lead → dealer accept (race-safe) → structured
-  status updates → 6-hour SLA auto-release mechanic, chat (REST + WebSocket,
-  with basic flag detection), reviews, notifications, and an admin console
+- The full backend API — auth (register/OTP/login/JWT for four roles:
+  customer, dealer, admin, and company), listings, the requirement →
+  broadcast lead → dealer accept (race-safe) → structured status updates →
+  6-hour SLA auto-release mechanic, chat (REST + WebSocket, with basic flag
+  detection), reviews, notifications, a **company/agency layer** (a company
+  account owns an invite code; dealers join it themselves; the company
+  gets rollup stats across every dealer who's joined), and an admin console
   API (moderation, KYC review, flagged-message queue, audit log).
-- Four screens on web: Home (live listings from the API), Login, Register,
-  Verify OTP.
+- Four screens on web: Home (live listings from the API), Login, Register
+  (now with a Buyer/Owner, Dealer, or Company account-type picker), Verify
+  OTP.
 - **A full admin console UI** at `/admin` (web only, sign in with the admin
   account below): dashboard stats, users, dealers with KYC approve/reject,
   listings with moderation actions, a leads overview, chat monitoring
   (conversation list + a read-only thread viewer that highlights flagged
   messages), the flagged-message queue, reports with resolve/dismiss, and
   the audit log. All of it hits the real API — nothing mocked.
+- **Three more role-specific dashboards, also web-only and fully wired to
+  the real API:**
+  - `/dashboard` — the buyer/seller (customer) dashboard: an overview of
+    open requirements and leads in progress, a table of every requirement
+    you've posted with the live status of its matched lead, and a table of
+    any properties you've listed yourself (FSBO).
+  - `/dealer` — the dealer's own console: performance stats (active leads,
+    accepted/closed/conversion rate, rating), a table of every lead you've
+    ever claimed, your own listings, and a Company tab to join or leave an
+    agency by invite code.
+  - `/company` — the company/agency console: register with the "Company"
+    account type to get an invite code, share it with your dealers, and
+    see a rollup (dealer count, active leads, conversion rate, total
+    listings, average rating) plus a per-dealer table that drills into each
+    dealer's full lead history and listings.
 - The same four customer-facing screens on mobile, gated with local
   component state (no navigation library wired up yet — see "Known
   limitations" below).
 - The **Aurora Glass** design system (fonts, color tokens, glass/blur
   components, icon set) shared by both frontends.
 
-**Designed but not built as screens yet:** most of the customer/dealer side
-of the ~80-screen inventory from the original product spec — property
-detail pages, the dealer dashboard (lead feed, accept flow, status
-updates), the in-app chat UI for customers/dealers, search filters wired to
-the real API, requirement posting, etc. The **backend API for almost all of
-this already exists and is tested** (see the smoke-test description below)
-— it's the frontend screens that are the next round of work. Admin is the
-one side that's now fully built out, UI included.
+**Designed but not built as screens yet:** most of the remaining
+customer/dealer side of the ~80-screen inventory from the original product
+spec — property detail pages, the live dealer lead feed (accept flow off
+the broadcast queue, distinct from the "my leads" history table that *is*
+built), the in-app chat UI for customers/dealers, search filters wired to
+the real API, a requirement-posting form, etc. The **backend API for almost
+all of this already exists and is tested** (see the smoke-test description
+below) — it's the frontend screens that are the next round of work. Admin
+and the four role dashboards are the sides that are now fully built out, UI
+included.
 
 ## Prerequisites
 
@@ -187,15 +208,22 @@ Every seeded account uses the same password: `DevPass123!`
 | Role | Phone | Notes |
 |---|---|---|
 | Admin | `+920000000001` | Sign in on the website, then go to `/admin` for the admin console |
-| Dealer | `+920000000002` | "Ahmed — City Realty", approved KYC, covers Lahore |
+| Dealer | `+920000000002` | "Ahmed — City Realty", approved KYC, covers Lahore — sign in and go to `/dealer` |
 | Dealer | `+920000000003` | "Sara — Prime Homes", approved KYC, covers Lahore |
-| Customer | `+920000000004` | "Bilal Khan" |
+| Customer | `+920000000004` | "Bilal Khan" — sign in and go to `/dashboard` |
 
 New accounts you register yourself go through the real OTP-verification
 flow — the OTP code isn't actually sent anywhere (no SMS provider is wired
 up yet), it's returned directly in the API response and shown on the
 Verify screen with a "Dev mode" label, so you can complete signup without
 needing a real phone.
+
+There's no seeded Company account (the dump predates that feature) — to try
+`/company`, register a new account and pick "Company" as the account type
+on the register page. That takes you to `/company`, where you'll see an
+invite code; sign in as an existing dealer (e.g. `+920000000002`), go to
+`/dealer/company`, and enter that code to join. The company account will
+then show that dealer's stats on `/company/dealers`.
 
 ## Useful commands
 

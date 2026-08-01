@@ -5,7 +5,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 
 export interface CurrentUser {
   id: string;
-  role: "CUSTOMER" | "DEALER" | "ADMIN";
+  role: "CUSTOMER" | "DEALER" | "ADMIN" | "COMPANY";
   name: string;
   phone: string;
   email?: string | null;
@@ -28,7 +28,13 @@ interface AuthContextValue {
   accessToken: string | null;
   loading: boolean;
   login: (phone: string, password: string) => Promise<void>;
-  register: (dto: { phone: string; name: string; password: string; role: "CUSTOMER" | "DEALER" }) => Promise<RegisterResult>;
+  register: (dto: {
+    phone: string;
+    name: string;
+    password: string;
+    role: "CUSTOMER" | "DEALER" | "COMPANY";
+    companyName?: string;
+  }) => Promise<RegisterResult>;
   verifyOtp: (phone: string, code: string) => Promise<void>;
   logout: () => void;
 }
@@ -75,7 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me);
   }
 
-  async function register(dto: { phone: string; name: string; password: string; role: "CUSTOMER" | "DEALER" }) {
+  async function register(dto: {
+    phone: string;
+    name: string;
+    password: string;
+    role: "CUSTOMER" | "DEALER" | "COMPANY";
+    companyName?: string;
+  }) {
     return apiFetch<RegisterResult>("/auth/register", { method: "POST", body: dto });
   }
 

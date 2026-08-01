@@ -1,9 +1,9 @@
 "use client";
 
-import { PageHeader } from "@/components/admin/PageHeader";
-import { Table } from "@/components/admin/Table";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Table } from "@/components/shared/Table";
 import { Badge } from "@/components/ui/Badge";
-import { useAdminFetch } from "@/lib/useAdminFetch";
+import { useAuthedFetch } from "@/lib/useAuthedFetch";
 
 interface AdminUser {
   id: string;
@@ -15,7 +15,7 @@ interface AdminUser {
 }
 
 export default function AdminUsersPage() {
-  const { data, loading, error } = useAdminFetch<AdminUser[]>("/admin/users");
+  const { data, loading, error } = useAuthedFetch<AdminUser[]>("/admin/users");
 
   return (
     <div>
