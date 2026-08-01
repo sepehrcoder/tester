@@ -23,21 +23,29 @@ This matters, so it's stated plainly rather than left for you to discover.
   requirement → broadcast lead → dealer accept (race-safe) → structured
   status updates → 6-hour SLA auto-release mechanic, chat (REST + WebSocket,
   with basic flag detection), reviews, notifications, and an admin console
-  (moderation, KYC review, flagged-message queue, audit log).
+  API (moderation, KYC review, flagged-message queue, audit log).
 - Four screens on web: Home (live listings from the API), Login, Register,
   Verify OTP.
-- The same four screens on mobile, gated with local component state (no
-  navigation library wired up yet — see "Known limitations" below).
+- **A full admin console UI** at `/admin` (web only, sign in with the admin
+  account below): dashboard stats, users, dealers with KYC approve/reject,
+  listings with moderation actions, a leads overview, chat monitoring
+  (conversation list + a read-only thread viewer that highlights flagged
+  messages), the flagged-message queue, reports with resolve/dismiss, and
+  the audit log. All of it hits the real API — nothing mocked.
+- The same four customer-facing screens on mobile, gated with local
+  component state (no navigation library wired up yet — see "Known
+  limitations" below).
 - The **Aurora Glass** design system (fonts, color tokens, glass/blur
   components, icon set) shared by both frontends.
 
-**Designed but not built as screens yet:** the rest of the ~80-screen
-inventory from the original product spec — property detail pages, the
-dealer dashboard (lead feed, accept flow, status updates), the admin
-console UI, the chat UI, search filters wired to the real API, requirement
-posting, etc. The **backend API for almost all of this already exists and
-is tested** (see the smoke-test description below) — it's the frontend
-screens that are the next round of work.
+**Designed but not built as screens yet:** most of the customer/dealer side
+of the ~80-screen inventory from the original product spec — property
+detail pages, the dealer dashboard (lead feed, accept flow, status
+updates), the in-app chat UI for customers/dealers, search filters wired to
+the real API, requirement posting, etc. The **backend API for almost all of
+this already exists and is tested** (see the smoke-test description below)
+— it's the frontend screens that are the next round of work. Admin is the
+one side that's now fully built out, UI included.
 
 ## Prerequisites
 
@@ -122,10 +130,9 @@ PGPASSWORD=marketplace_dev psql -h localhost -U marketplace -d marketplace_dev -
 ```
 
 `database-dump.sql` is data-only (the schema already came from `migrate
-deploy` above) — it contains the same 4 seeded accounts plus a couple of
-extra requirements/leads/messages generated while verifying the backend
-during development. Functionally equivalent to Option A, just with a
-slightly more exercised dataset.
+deploy` above) — it's a straight export of the same 4 seeded accounts and
+one listing that `prisma db seed` creates. Functionally equivalent to
+Option A; use whichever's more convenient.
 
 ## 3. Configure environment variables
 
@@ -179,7 +186,7 @@ Every seeded account uses the same password: `DevPass123!`
 
 | Role | Phone | Notes |
 |---|---|---|
-| Admin | `+920000000001` | Full admin console API access |
+| Admin | `+920000000001` | Sign in on the website, then go to `/admin` for the admin console |
 | Dealer | `+920000000002` | "Ahmed — City Realty", approved KYC, covers Lahore |
 | Dealer | `+920000000003` | "Sara — Prime Homes", approved KYC, covers Lahore |
 | Customer | `+920000000004` | "Bilal Khan" |
