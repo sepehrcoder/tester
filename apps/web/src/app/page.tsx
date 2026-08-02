@@ -23,6 +23,7 @@ interface ApiListing {
   beds: number | null;
   verified: boolean;
   source: "DEALER" | "OWNER";
+  photos: { url: string }[];
 }
 
 async function getListings(): Promise<{ listings: Property[]; live: boolean }> {
@@ -39,6 +40,7 @@ async function getListings(): Promise<{ listings: Property[]; live: boolean }> {
         location: `${item.area}, ${item.city}`,
         verified: item.verified,
         tag: item.beds ? `${item.beds} bed` : item.source === "OWNER" ? "Owner listed" : "Listing",
+        photoUrl: item.photos[0]?.url,
       })),
     };
   } catch {

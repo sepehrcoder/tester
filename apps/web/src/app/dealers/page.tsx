@@ -16,6 +16,15 @@ interface Dealer {
   user: { name: string };
 }
 
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter((w) => /^[\p{L}\p{N}]/u.test(w))
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
+}
+
 export default function DealersDirectoryPage() {
   const [city, setCity] = useState("");
   const [dealers, setDealers] = useState<Dealer[]>([]);
@@ -74,9 +83,16 @@ export default function DealersDirectoryPage() {
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {dealers.map((d) => (
               <article key={d.userId} className="surface-flat p-4">
-                <h3 className="font-body text-sm font-bold text-ink">{d.user.name}</h3>
-                {d.agencyName && <p className="font-body text-xs text-ink-soft">{d.agencyName}</p>}
-                <p className="mt-2 font-body text-xs text-ink-faint">{d.coverageCities.join(", ") || "No coverage set"}</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-pill bg-ember text-sm font-bold text-ember-ink">
+                    {initials(d.user.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate font-body text-sm font-bold text-ink">{d.user.name}</h3>
+                    {d.agencyName && <p className="truncate font-body text-xs text-ink-soft">{d.agencyName}</p>}
+                  </div>
+                </div>
+                <p className="mt-3 font-body text-xs text-ink-faint">{d.coverageCities.join(", ") || "No coverage set"}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {d.propertyTypes.map((pt) => (
                     <Badge key={pt} variant="ghost">
