@@ -15,6 +15,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
 import { CompanyModule } from './company/company.module';
 import { PropertiesModule } from './properties/properties.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PropertiesModule } from './properties/properties.module';
     AdminModule,
     CompanyModule,
     PropertiesModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

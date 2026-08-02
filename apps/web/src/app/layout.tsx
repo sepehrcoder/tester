@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { displayFont, bodyFont } from "@/fonts";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { AiAssistantWidget } from "@/components/ai/AiAssistantWidget";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,10 @@ export default function RootLayout({
       className={`${displayFont.variable} ${bodyFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <AiAssistantWidget />
+        </AuthProvider>
       </body>
     </html>
   );

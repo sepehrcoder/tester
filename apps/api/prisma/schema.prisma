@@ -172,6 +172,10 @@ model User {
   name            String
   avatarUrl       String?
   phoneVerifiedAt DateTime?
+  // Bumped (throttled) on authenticated requests — powers the "is this
+  // dealer offline?" check the AI auto-reply feature relies on. Not a
+  // real-time presence system, just a coarse last-seen heuristic.
+  lastActiveAt    DateTime  @default(now())
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -415,6 +419,10 @@ model Message {
   body           String
   flagged        Boolean      @default(false)
   flagReason     String?
+  // True for a message the AI assistant posted on a dealer's behalf while
+  // they were offline — always shown to the buyer as clearly AI-generated,
+  // never silently impersonating the dealer.
+  aiGenerated    Boolean      @default(false)
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])

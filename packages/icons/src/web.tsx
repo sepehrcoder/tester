@@ -50,6 +50,11 @@ import {
   Trash2,
   FileText,
   Menu,
+  Mic,
+  MicOff,
+  Sparkles,
+  Volume2,
+  VolumeX,
   type LucideIcon,
   type LucideProps,
 } from "lucide-react";
@@ -105,5 +110,10 @@ export const IconEdit = wrap(Edit3);
 export const IconTrash = wrap(Trash2);
 export const IconDocument = wrap(FileText);
 export const IconMenu = wrap(Menu);
+export const IconMic = wrap(Mic);
+export const IconMicOff = wrap(MicOff);
+export const IconSparkles = wrap(Sparkles);
+export const IconVolume = wrap(Volume2);
+export const IconVolumeOff = wrap(VolumeX);
 
 export type { LucideProps as IconProps };

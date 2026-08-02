@@ -1,10 +1,14 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AiService } from '../ai/ai.service';
 import { detectFlag } from './flag-detector';
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ai: AiService,
+  ) {}
 
   listMine(userId: string) {
     return this.prisma.conversation.findMany({
@@ -42,10 +46,38 @@ export class ChatService {
     await this.assertParticipant(conversationId, senderId);
     const { flagged, reason } = detectFlag(body);
 
-    return this.prisma.message.create({
+    const message = await this.prisma.message.create({
       data: { conversationId, senderId, body, flagged, flagReason: reason },
       include: { sender: { select: { id: true, name: true, role: true } } },
     });
+
+    // Both are best-effort and must never slow down or fail the send: a
+    // fast regex pass already ran above for the synchronous flag; this is a
+    // smarter (slower) second look, plus an auto-reply if the other side is
+    // a dealer who's been inactive for a while.
+    if (!flagged) this.ai.moderateMessageAsync(message.id).catch(() => {});
+    this.autoReplyIfDealerOffline(conversationId, senderId).catch(() => {});
+
+    return message;
+  }
+
+  private async autoReplyIfDealerOffline(
+    conversationId: string,
+    senderId: string,
+  ) {
+    const otherDealers = await this.prisma.conversationParticipant.findMany({
+      where: {
+        conversationId,
+        userId: { not: senderId },
+        user: { role: 'DEALER' },
+      },
+      select: { userId: true, user: { select: { lastActiveAt: true } } },
+    });
+    for (const p of otherDealers) {
+      if (this.ai.isOffline(p.user.lastActiveAt)) {
+        await this.ai.maybeAutoReply(conversationId, p.userId);
+      }
+    }
   }
 
   // -- admin (trust & safety) ------------------------------------------------

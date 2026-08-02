@@ -117,17 +117,50 @@ This matters, so it's stated plainly rather than left for you to discover.
   limitations" below).
 - The **Aurora Glass** design system (fonts, color tokens, glass/blur
   components, icon set) shared by both frontends.
+- **AI, powered by Gemini** (web only — see `apps/api/src/ai/`):
+  - A floating **AI assistant widget** on every web page (bottom-right,
+    signed-in or anonymous) that answers questions about listings, dealers,
+    and market prices using live tool-calling against the real database —
+    it never invents a price, a listing, or a dealer name, only reports
+    what a tool call actually returned. Signed-in users get answers
+    personalized to their own recent requirements (customer) or dealer
+    profile (dealer). Supports **voice in** (the browser's
+    `SpeechRecognition` API — click the mic) and **voice out** (toggle a
+    speaker icon to have replies read aloud via `SpeechSynthesis`), both
+    free, no extra API or billing involved.
+  - A real **marketplace chat inbox** (`/dashboard/messages` for
+    customers, `/dealer/messages` for dealers) — this was previously
+    backend-only (admin could monitor it, nobody could actually use it).
+    REST-polled, same pattern as the tenant/owner chat.
+  - **AI auto-reply while a dealer is offline.** If a buyer messages a
+    dealer who hasn't been active in the last 10 minutes, the AI drafts a
+    brief, grounded reply from the dealer's lead/listing context and posts
+    it under the dealer's own name — but it is **always and only** sent
+    with `aiGenerated: true`, and every surface that renders it (the inbox,
+    both sides) shows a distinct "AI Assistant" label. It never
+    impersonates the dealer silently, and it never invents a price or
+    promise the dealer hasn't actually made.
+  - **AI-assisted chat moderation.** The existing fast regex-based flag
+    detector (phone numbers, "message me on WhatsApp", etc.) still runs
+    synchronously on every message; a second, slower Gemini-based pass now
+    runs afterward in the background and can additionally flag scam/fraud
+    language and harassment the regex can't catch — verified live with a
+    message that named no phone number or off-platform keyword but was
+    still correctly flagged as scam language.
+  - Gracefully disabled, not broken, without a key: every AI feature checks
+    `GeminiClient.enabled` first — with no `GEMINI_API_KEY` set, the
+    assistant widget returns a clear "not configured" error and auto-reply/
+    moderation silently no-op. The rest of the app is unaffected either way.
 
 **Designed but not built as screens yet:** most of the remaining
 customer/dealer side of the ~80-screen inventory from the original product
 spec — property detail pages, the live dealer lead feed (accept flow off
 the broadcast queue, distinct from the "my leads" history table that *is*
-built), the in-app chat UI for customers/dealers, search filters wired to
-the real API, a requirement-posting form, etc. The **backend API for almost
-all of this already exists and is tested** (see the smoke-test description
-below) — it's the frontend screens that are the next round of work. Admin
-and the six role dashboards are the sides that are now fully built out, UI
-included.
+built), search filters wired to the real API, a requirement-posting form,
+etc. The **backend API for almost all of this already exists and is
+tested** (see the smoke-test description below) — it's the frontend
+screens that are the next round of work. Admin and the six role dashboards
+are the sides that are now fully built out, UI included.
 
 **Audited and hardened.** The whole platform went through a dedicated
 correctness/security/completeness pass after the property-management layer
@@ -265,6 +298,17 @@ used different credentials, edit `DATABASE_URL` in `apps/api/.env` to match.
 local use, but generate real random secrets before ever deploying this
 anywhere reachable by the internet.
 
+**Optional: AI features.** Get a free key at
+[aistudio.google.com/apikey](https://aistudio.google.com/apikey) and set
+`GEMINI_API_KEY` in `apps/api/.env`. Without it, the app runs exactly as
+described everywhere else in this doc — the AI assistant widget, auto-reply,
+and AI moderation pass just stay off. `GEMINI_MODEL` defaults to
+`gemini-flash-lite-latest`, which had the most headroom on Google's free
+tier as of when this was built (`gemini-flash-latest` free tier is limited
+to 5 requests/minute, which the assistant can burn through in a couple of
+back-and-forth exchanges since each turn can be more than one Gemini call
+when it uses a tool).
+
 ## 4. Run it
 
 Three separate terminals:
@@ -385,3 +429,19 @@ open http://localhost:4000/docs
   available in the environment this was built in) — it passes a full
   TypeScript type-check, but hasn't been seen rendering on a device.
   Please report anything that looks off.
+- **AI voice input/output uses the browser's Web Speech API, not a
+  server-side model.** `SpeechRecognition` (voice in) is well-supported in
+  Chrome/Edge/Safari but not Firefox; the mic button simply doesn't render
+  when a browser lacks it, so there's no broken control to click, but voice
+  input silently isn't an option there. `SpeechSynthesis` (voice out) is
+  broadly supported.
+- **No cost controls on the Gemini integration.** There's no per-user rate
+  limit, quota, or spend cap in front of the AI assistant, auto-reply, or
+  moderation pass beyond whatever's configured on the Google AI Studio key
+  itself — fine for local dev and a free-tier key, but add one before
+  exposing this publicly with a paid key.
+- **AI moderation is a second opinion, not a gate.** It runs asynchronously
+  after a message is already saved and delivered — it can flag a message
+  for the trust & safety queue after the fact, but (like the existing regex
+  pass) it never blocks sending. Both are best-effort filters, not a
+  guarantee.
