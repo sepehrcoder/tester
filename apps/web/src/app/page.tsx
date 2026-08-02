@@ -1,11 +1,10 @@
-import { IconFilter, IconSearch, IconVerified } from "@repo/icons/web";
+import Link from "next/link";
+import { IconVerified } from "@repo/icons/web";
 import { AppNav } from "@/components/marketing/AppNav";
+import { MarketingSearchBar } from "@/components/marketing/SearchBar";
 import { PropertyCard, type Property } from "@/components/marketing/PropertyCard";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { API_URL } from "@/lib/api";
-
-const filters = ["For sale", "For rent", "Houses", "Plots", "Apartments", "Verified only"];
 
 function formatPKR(value: number) {
   const rounded = Math.round(value).toString();
@@ -34,6 +33,7 @@ async function getListings(): Promise<{ listings: Property[]; live: boolean }> {
     return {
       live: true,
       listings: data.items.map((item) => ({
+        id: item.id,
         price: formatPKR(Number(item.price)),
         title: item.title,
         location: `${item.area}, ${item.city}`,
@@ -79,35 +79,19 @@ export default async function Home() {
               area gets notified — first to respond and follow through gets the client.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button variant="primary">Post a requirement</Button>
-              <Button variant="secondary">
-                <IconVerified size={16} />
-                Browse verified dealers
-              </Button>
+              <Link href="/requirements/new">
+                <Button variant="primary">Post a requirement</Button>
+              </Link>
+              <Link href="/dealers">
+                <Button variant="secondary">
+                  <IconVerified size={16} />
+                  Browse verified dealers
+                </Button>
+              </Link>
             </div>
           </section>
 
-          <section className="surface-glass mb-8 flex flex-wrap items-center gap-3 p-4">
-            <div className="flex flex-1 items-center gap-2 rounded-sm border border-flat-border bg-flat px-3 py-2 text-ink-soft">
-              <IconSearch size={16} />
-              <input
-                className="w-full bg-transparent font-body text-sm text-ink outline-none placeholder:text-ink-faint"
-                placeholder="Search city, area, or project"
-              />
-            </div>
-            <button className="flex items-center gap-1.5 font-body text-sm font-semibold text-ink-soft hover:text-ink">
-              <IconFilter size={16} />
-              Filters
-            </button>
-          </section>
-
-          <section className="mb-6 flex flex-wrap gap-2">
-            {filters.map((f) => (
-              <Badge key={f} variant={f === "Verified only" ? "teal" : "ghost"}>
-                {f}
-              </Badge>
-            ))}
-          </section>
+          <MarketingSearchBar />
 
           {!live && (
             <p className="mb-4 font-body text-xs text-ink-faint">
@@ -117,9 +101,15 @@ export default async function Home() {
 
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {listings.map((l) => (
-              <PropertyCard key={l.title} {...l} />
+              <PropertyCard key={l.id ?? l.title} {...l} />
             ))}
           </section>
+
+          <div className="mt-6 text-center">
+            <Link href="/listings" className="font-body text-sm font-semibold text-teal">
+              See all listings →
+            </Link>
+          </div>
         </main>
 
         <footer className="px-4 pb-10 pt-6 text-center font-body text-xs text-ink-faint">

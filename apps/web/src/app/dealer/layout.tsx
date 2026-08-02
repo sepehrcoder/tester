@@ -4,10 +4,11 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { DashboardShell, type DashboardNavItem } from "@/components/shared/DashboardShell";
-import { IconAnalytics, IconLead, IconBuilding, IconClients, IconBilling, IconChat } from "@repo/icons/web";
+import { IconAnalytics, IconLead, IconSearch, IconBuilding, IconClients, IconBilling, IconChat } from "@repo/icons/web";
 
 const NAV: DashboardNavItem[] = [
   { href: "/dealer", label: "Overview", icon: IconAnalytics, exact: true },
+  { href: "/dealer/leads-feed", label: "Lead feed", icon: IconSearch },
   { href: "/dealer/leads", label: "My leads", icon: IconLead },
   { href: "/dealer/listings", label: "My listings", icon: IconBuilding },
   { href: "/dealer/rentals", label: "My rentals", icon: IconBilling },

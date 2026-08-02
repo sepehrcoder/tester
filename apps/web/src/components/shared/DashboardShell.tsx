@@ -37,7 +37,7 @@ export function DashboardShell({
 
         <nav className="flex flex-1 flex-col gap-1">
           {nav.map(({ href, label, icon: Icon, exact }) => {
-            const active = exact ? pathname === href : pathname.startsWith(href);
+            const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
                 key={href}

@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { IconMapPin } from "@repo/icons/web";
 import { Badge } from "@/components/ui/Badge";
 
 export interface Property {
+  id?: string;
   price: string;
   title: string;
   location: string;
@@ -9,8 +11,8 @@ export interface Property {
   tag: string;
 }
 
-export function PropertyCard({ price, title, location, verified, tag }: Property) {
-  return (
+export function PropertyCard({ id, price, title, location, verified, tag }: Property) {
+  const card = (
     <article className="surface-flat flex gap-4 p-4">
       <div className="h-20 w-24 flex-shrink-0 rounded-sm bg-linear-to-br from-violet to-cyan" />
       <div className="min-w-0 flex-1">
@@ -26,5 +28,13 @@ export function PropertyCard({ price, title, location, verified, tag }: Property
         </div>
       </div>
     </article>
+  );
+
+  return id ? (
+    <Link href={`/listings/${id}`} className="block transition-transform hover:scale-[1.01]">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }

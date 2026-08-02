@@ -62,9 +62,34 @@ This matters, so it's stated plainly rather than left for you to discover.
     notified) — mirrors the existing 6-hour SLA-release cron on the lead
     mechanic, so an owner who forgets to click "End lease" doesn't
     permanently lose the ability to re-let the unit.
-- Four screens on web: Home (live listings from the API), Login, Register
-  (now with a Buyer/Owner, Dealer, or Company account-type picker), Verify
-  OTP.
+- **The core marketplace discovery flow** — previously the homepage's
+  search box, filter pills, and "Post a requirement"/"Browse verified
+  dealers" buttons were decorative; all of it is wired to the real API now:
+  - Home: live listings, a search bar and filter pills that jump into
+    `/listings` with the right query applied.
+  - `/listings` — full search results with city/purpose/property-type/
+    verified filters and pagination, all client-side interactive against
+    `GET /listings`.
+  - `/listings/[id]` — a real listing detail page (photos, price, size,
+    description, owner/dealer), with a **"Message"** button that opens (or
+    reuses) a conversation with the listing's owner — one conversation per
+    (listing, buyer) pair, since many buyers can be interested in the same
+    listing — landing the buyer straight in their chat inbox.
+  - `/requirements/new` — the actual requirement-posting form (property
+    type, purpose, city/area, budget, beds, notes), gated to signed-in
+    customer accounts, posting to the same broadcast-to-matched-dealers
+    mechanic that's always powered the backend.
+  - `/dealers` — a public directory of KYC-approved dealers (agency,
+    coverage cities, property types, rating), filterable by city.
+  - `/dealer/leads-feed` — the **live lead feed** dealers had been missing:
+    every open, unclaimed requirement matched to a dealer's coverage
+    cities and property types, with a one-click **Accept** wired to the
+    same race-safe atomic-claim mechanic as the API (first dealer to
+    accept wins; a second click on an already-claimed lead is rejected).
+    Distinct from **"My leads"**, which stays the history table of leads
+    you've already claimed.
+- Login, Register (with a Buyer/Owner, Dealer, or Company account-type
+  picker), Verify OTP.
 - **A full admin console UI** at `/admin` (web only, sign in with the admin
   account below): dashboard stats (marketplace *and* companies/property
   management in one view), a Users list covering every non-dealer role
@@ -152,15 +177,14 @@ This matters, so it's stated plainly rather than left for you to discover.
     assistant widget returns a clear "not configured" error and auto-reply/
     moderation silently no-op. The rest of the app is unaffected either way.
 
-**Designed but not built as screens yet:** most of the remaining
-customer/dealer side of the ~80-screen inventory from the original product
-spec — property detail pages, the live dealer lead feed (accept flow off
-the broadcast queue, distinct from the "my leads" history table that *is*
-built), search filters wired to the real API, a requirement-posting form,
-etc. The **backend API for almost all of this already exists and is
-tested** (see the smoke-test description below) — it's the frontend
-screens that are the next round of work. Admin and the six role dashboards
-are the sides that are now fully built out, UI included.
+**Designed but not built as screens yet:** in-app review submission (the
+`POST /reviews` API exists — see `apps/api/src/reviews/` — but there's no
+frontend form to call it yet), and a few smaller items from the original
+~80-screen product spec (saved searches/alerts have no backend or frontend
+yet at all). The core buy/sell/rent discovery flow (search, listing
+detail, requirement posting, dealer directory, the live lead feed) is now
+built — see above. Admin and the six role dashboards were already fully
+built out, UI included.
 
 **Audited and hardened.** The whole platform went through a dedicated
 correctness/security/completeness pass after the property-management layer

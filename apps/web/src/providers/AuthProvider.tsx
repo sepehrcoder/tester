@@ -46,12 +46,23 @@ function readStoredToken(): string | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(readStoredToken);
-  const [loading, setLoading] = useState(() => readStoredToken() !== null);
+  // Always start at the same neutral value on both server and client —
+  // reading localStorage into the initial state (even lazily) diverges
+  // between the server's render (no `window`) and the client's, which
+  // breaks hydration on any full page load while a session already exists.
+  // The real token is picked up client-side in the effect below instead.
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!accessToken) return;
-    apiFetch<CurrentUser>("/auth/me", { token: accessToken })
+    const token = readStoredToken();
+    if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(false);
+      return;
+    }
+    setAccessToken(token);
+    apiFetch<CurrentUser>("/auth/me", { token })
       .then(setUser)
       .catch(() => {
         window.localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -60,7 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
     // Intentionally mount-once: this hydrates from whatever token was in
     // localStorage when the provider first rendered.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function persist(tokens: TokenPair) {

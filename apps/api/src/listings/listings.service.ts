@@ -111,6 +111,30 @@ export class ListingsService {
     });
   }
 
+  /** Buyer-initiated chat about a listing — one conversation per (listing, buyer) pair, since many buyers can be interested in the same listing. */
+  async openChat(user: AuthenticatedUser, id: string) {
+    const listing = await this.findOne(id, user);
+    if (listing.ownerId === user.id) {
+      throw new ForbiddenException(
+        "You can't message yourself about your own listing",
+      );
+    }
+
+    const existing = await this.prisma.conversation.findFirst({
+      where: { listingId: id, participants: { some: { userId: user.id } } },
+    });
+    if (existing) return existing;
+
+    return this.prisma.conversation.create({
+      data: {
+        listingId: id,
+        participants: {
+          create: [{ userId: user.id }, { userId: listing.ownerId }],
+        },
+      },
+    });
+  }
+
   /** Used by AdminService — not exposed directly on this controller. */
   setStatus(id: string, status: ListingStatus, verified?: boolean) {
     return this.prisma.listing.update({

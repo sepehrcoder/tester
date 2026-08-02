@@ -87,4 +87,11 @@ export class ListingsController {
   ) {
     return this.listings.addPhoto(user, id, dto.url);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post(':id/chat')
+  openChat(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.listings.openChat(user, id);
+  }
 }

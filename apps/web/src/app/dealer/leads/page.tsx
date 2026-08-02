@@ -32,7 +32,7 @@ export default function MyLeadsPage() {
         <Table
           rows={data}
           keyFor={(a) => a.id}
-          emptyMessage="You haven't accepted a lead yet — check the live feed once it's built."
+          emptyMessage="You haven't accepted a lead yet — check the Lead feed tab for open requirements."
           columns={[
             {
               header: "Requirement",

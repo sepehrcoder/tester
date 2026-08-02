@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateDealerProfileDto } from './dto/update-dealer-profile.dto';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
+import { SearchDealersDto } from './dto/search-dealers.dto';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 
 @Injectable()
@@ -160,6 +161,30 @@ export class UsersService {
       kycStatus: profile?.kycStatus ?? 'UNSUBMITTED',
       company: profile?.company ?? null,
     };
+  }
+
+  /** Public dealer directory — approved-KYC dealers only, optionally filtered by coverage. */
+  listPublicDealers(query: SearchDealersDto) {
+    return this.prisma.dealerProfile.findMany({
+      where: {
+        kycStatus: 'APPROVED',
+        ...(query.city ? { coverageCities: { has: query.city } } : {}),
+        ...(query.propertyType
+          ? { propertyTypes: { has: query.propertyType } }
+          : {}),
+      },
+      select: {
+        userId: true,
+        agencyName: true,
+        coverageCities: true,
+        propertyTypes: true,
+        ratingAvg: true,
+        ratingCount: true,
+        user: { select: { name: true, avatarUrl: true } },
+      },
+      orderBy: { ratingAvg: 'desc' },
+      take: 100,
+    });
   }
 
   async getPublicDealerProfile(userId: string) {

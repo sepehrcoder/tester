@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -13,6 +14,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateDealerProfileDto } from './dto/update-dealer-profile.dto';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
 import { JoinCompanyDto } from './dto/join-company.dto';
+import { SearchDealersDto } from './dto/search-dealers.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -72,6 +74,11 @@ export class UsersController {
   @Get('me/stats')
   myStats(@CurrentUser() user: AuthenticatedUser) {
     return this.users.myStats(user);
+  }
+
+  @Get('dealers')
+  listPublicDealers(@Query() query: SearchDealersDto) {
+    return this.users.listPublicDealers(query);
   }
 
   @Get(':id/public')
