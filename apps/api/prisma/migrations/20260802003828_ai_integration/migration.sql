@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Message" ADD COLUMN     "aiGenerated" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "lastActiveAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

@@ -1,0 +1,621 @@
+// Real Estate Marketplace — data model.
+// See .agents/skills/prisma-upgrade-v7 for the v7 patterns this follows
+// (driver adapters, generated client output path, prisma.config.ts).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  CUSTOMER
+  DEALER
+  ADMIN
+  COMPANY
+  TENANT
+  PLAZA_MANAGER
+}
+
+enum KycStatus {
+  UNSUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PropertyType {
+  HOUSE
+  APARTMENT
+  PLOT
+  COMMERCIAL
+}
+
+enum ListingPurpose {
+  SALE
+  RENT
+}
+
+enum ListingSource {
+  DEALER
+  OWNER
+}
+
+enum ListingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FLAGGED
+  ARCHIVED
+}
+
+enum RequirementStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+// The operational unit dealers claim. One Requirement has at most one *live*
+// Lead at a time; history of who held it lives in LeadAssignment.
+enum LeadStatus {
+  BROADCAST // visible to every matched dealer, unclaimed
+  ACCEPTED // a dealer has claimed it and the SLA clock is running
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum LeadStage {
+  CONTACTED
+  VISIT_SCHEDULED
+  NEGOTIATING
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum LeadAssignmentOutcome {
+  RELEASED_SLA // dealer let the 6h window lapse with no update
+  CLOSED_WON
+  CLOSED_LOST
+  REASSIGNED_BY_ADMIN
+}
+
+enum OtpPurpose {
+  REGISTER
+  LOGIN
+}
+
+enum ReportTargetType {
+  LISTING
+  USER
+  MESSAGE
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// -- property management -----------------------------------------------
+
+enum FurnishingStatus {
+  FURNISHED
+  SEMI_FURNISHED
+  UNFURNISHED
+}
+
+enum UnitLayout {
+  STUDIO
+  ONE_BED
+  TWO_BED
+  THREE_BED
+  FOUR_BED_PLUS
+  SHOP
+  OFFICE
+}
+
+enum OccupancyStatus {
+  VACANT
+  OCCUPIED
+}
+
+enum LeaseStatus {
+  ACTIVE
+  ENDED
+  TERMINATED
+}
+
+enum RentPaymentStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum UtilityType {
+  ELECTRICITY
+  GAS
+  WATER
+  INTERNET
+  OTHER
+}
+
+enum BillStatus {
+  SUBMITTED
+  PAID
+  OVERDUE
+}
+
+enum MaintenanceStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String    @id @default(cuid())
+  role            Role
+  phone           String    @unique
+  email           String?   @unique
+  passwordHash    String
+  name            String
+  avatarUrl       String?
+  phoneVerifiedAt DateTime?
+  // Bumped (throttled) on authenticated requests — powers the "is this
+  // dealer offline?" check the AI auto-reply feature relies on. Not a
+  // real-time presence system, just a coarse last-seen heuristic.
+  lastActiveAt    DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  dealerProfile DealerProfile?
+  companyOwned  Company?       @relation("CompanyOwner")
+
+  plazasManaged        Plaza[]
+  rentalUnitsOwned     RentalUnit[]         @relation("UnitOwner")
+  leasesAsTenant       Lease[]              @relation("LeaseTenant")
+  rentPaymentsReviewed RentPayment[]        @relation("RentPaymentReviewer")
+  maintenanceRaised    MaintenanceRequest[] @relation("MaintenanceRaisedBy")
+
+  listings          Listing[]
+  requirements      Requirement[]
+  leadsAsDealer     Lead[]                    @relation("LeadDealer")
+  leadAssignments   LeadAssignment[]
+  leadStatusUpdates LeadStatusUpdate[]
+  messages          Message[]
+  conversations     ConversationParticipant[]
+  reviewsGiven      Review[]                  @relation("ReviewAuthor")
+  reviewsReceived   Review[]                  @relation("ReviewSubject")
+  notifications     Notification[]
+  reports           Report[]
+  refreshTokens     RefreshToken[]
+  auditLogEntries   AuditLog[]
+
+  @@index([role])
+}
+
+model DealerProfile {
+  id             String         @id @default(cuid())
+  userId         String         @unique
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agencyName     String?
+  licenseNumber  String?
+  kycStatus      KycStatus      @default(UNSUBMITTED)
+  kycDocumentUrl String?
+  coverageCities String[]       @default([])
+  propertyTypes  PropertyType[] @default([])
+  ratingAvg      Float          @default(0)
+  ratingCount    Int            @default(0)
+  companyId      String?
+  company        Company?       @relation(fields: [companyId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([companyId])
+}
+
+// A company/agency account that owns many dealers. The owner (a User with
+// role COMPANY) signs in and sees a rollup of every dealer who joined via
+// the invite code — dealers opt in themselves, the company can't add them.
+model Company {
+  id         String   @id @default(cuid())
+  name       String
+  ownerId    String   @unique
+  owner      User     @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  inviteCode String   @unique @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  dealers DealerProfile[]
+}
+
+model OtpCode {
+  id         String     @id @default(cuid())
+  identifier String // phone number
+  code       String
+  purpose    OtpPurpose
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([identifier, purpose])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Listings
+// ---------------------------------------------------------------------------
+
+model Listing {
+  id           String         @id @default(cuid())
+  ownerId      String
+  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  source       ListingSource
+  status       ListingStatus  @default(PENDING)
+  purpose      ListingPurpose
+  propertyType PropertyType
+  title        String
+  description  String
+  price        Decimal        @db.Decimal(14, 2)
+  city         String
+  area         String
+  beds         Int?
+  baths        Int?
+  sizeValue    Float?
+  sizeUnit     String? // "marla" | "kanal" | "sqft"
+  verified     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  photos        ListingPhoto[]
+  conversations Conversation[]
+  reports       Report[]
+
+  @@index([status, purpose, propertyType, city])
+}
+
+model ListingPhoto {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String
+  order     Int     @default(0)
+}
+
+// ---------------------------------------------------------------------------
+// Requirements & Leads — the accept/lock/SLA-release mechanic
+// ---------------------------------------------------------------------------
+
+model Requirement {
+  id           String            @id @default(cuid())
+  customerId   String
+  customer     User              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  propertyType PropertyType
+  purpose      ListingPurpose
+  city         String
+  area         String?
+  budgetMin    Decimal?          @db.Decimal(14, 2)
+  budgetMax    Decimal?          @db.Decimal(14, 2)
+  beds         Int?
+  notes        String?
+  status       RequirementStatus @default(OPEN)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  leads Lead[]
+
+  @@index([status, city, propertyType])
+}
+
+model Lead {
+  id            String      @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  status        LeadStatus  @default(BROADCAST)
+
+  dealerId    String?
+  dealer      User?     @relation("LeadDealer", fields: [dealerId], references: [id])
+  acceptedAt  DateTime?
+  slaDeadline DateTime?
+  inviteToken String?   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusUpdates LeadStatusUpdate[]
+  assignments   LeadAssignment[]
+  conversations Conversation[]
+
+  @@index([status, dealerId])
+  @@index([slaDeadline])
+}
+
+// Structured stage picker a dealer taps through — see the screen inventory's
+// D-05. Every insert here also pushes Lead.slaDeadline forward, which is
+// what keeps an actively-worked lead from expiring.
+model LeadStatusUpdate {
+  id        String    @id @default(cuid())
+  leadId    String
+  lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  dealerId  String
+  dealer    User      @relation(fields: [dealerId], references: [id])
+  stage     LeadStage
+  note      String?
+  createdAt DateTime  @default(now())
+}
+
+// One row per dealer who ever held a given lead — powers the "expired /
+// released leads" log (screen D-07) and dealer performance stats.
+model LeadAssignment {
+  id         String                 @id @default(cuid())
+  leadId     String
+  lead       Lead                   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  dealerId   String
+  dealer     User                   @relation(fields: [dealerId], references: [id])
+  acceptedAt DateTime               @default(now())
+  releasedAt DateTime?
+  outcome    LeadAssignmentOutcome?
+
+  @@index([dealerId])
+  @@index([leadId])
+}
+
+// ---------------------------------------------------------------------------
+// Chat — admin can read any conversation; flagged messages surface for review
+// ---------------------------------------------------------------------------
+
+model Conversation {
+  id        String   @id @default(cuid())
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+  listingId String?
+  listing   Listing? @relation(fields: [listingId], references: [id])
+  leaseId   String?
+  lease     Lease?   @relation(fields: [leaseId], references: [id])
+  createdAt DateTime @default(now())
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  body           String
+  flagged        Boolean      @default(false)
+  flagReason     String?
+  // True for a message the AI assistant posted on a dealer's behalf while
+  // they were offline — always shown to the buyer as clearly AI-generated,
+  // never silently impersonating the dealer.
+  aiGenerated    Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([flagged])
+}
+
+// ---------------------------------------------------------------------------
+// Trust & safety, notifications, reviews
+// ---------------------------------------------------------------------------
+
+model Review {
+  id         String   @id @default(cuid())
+  dealerId   String
+  dealer     User     @relation("ReviewSubject", fields: [dealerId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   User     @relation("ReviewAuthor", fields: [customerId], references: [id], onDelete: Cascade)
+  leadId     String?
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now())
+
+  @@index([dealerId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  meta      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model Report {
+  id         String           @id @default(cuid())
+  reporterId String
+  reporter   User             @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType ReportTargetType
+  listingId  String?
+  listing    Listing?         @relation(fields: [listingId], references: [id])
+  reason     String
+  status     ReportStatus     @default(OPEN)
+  createdAt  DateTime         @default(now())
+
+  @@index([status])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Property management — an owner's rental portfolio (post-listing operations:
+// tenants, leases, rent, utilities, maintenance), and Plaza Manager accounts
+// that run the same operations across a whole building's worth of units,
+// optionally cross-linking each unit back to its real owner for a shared
+// read-only view ("auto-share").
+// ---------------------------------------------------------------------------
+
+// A building managed by a PLAZA_MANAGER account. One manager can run several.
+model Plaza {
+  id          String   @id @default(cuid())
+  managerId   String
+  manager     User     @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  name        String
+  city        String?
+  area        String?
+  totalFloors Int?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  units RentalUnit[]
+
+  @@index([managerId])
+}
+
+// A single rental unit under management. Either "standalone" (ownerId set,
+// plazaId null — an owner managing their own property directly) or embedded
+// in a Plaza (plazaId set; ownerId is set only once the plaza manager links
+// the real owner's account, which is what turns on the owner's shared view).
+model RentalUnit {
+  id          String           @id @default(cuid())
+  ownerId     String?
+  owner       User?            @relation("UnitOwner", fields: [ownerId], references: [id])
+  plazaId     String?
+  plaza       Plaza?           @relation(fields: [plazaId], references: [id], onDelete: Cascade)
+  floorNumber Int?
+  title       String
+  city        String
+  area        String?
+  unitLayout  UnitLayout
+  furnishing  FurnishingStatus @default(UNFURNISHED)
+  monthlyRent Decimal          @db.Decimal(14, 2)
+  occupancy   OccupancyStatus  @default(VACANT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  leases Lease[]
+
+  @@index([ownerId])
+  @@index([plazaId])
+}
+
+// A tenancy on a unit. Rent/deposit are snapshotted at signing so later
+// changes to RentalUnit.monthlyRent don't rewrite history.
+model Lease {
+  id            String      @id @default(cuid())
+  unitId        String
+  unit          RentalUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenantId      String
+  tenant        User        @relation("LeaseTenant", fields: [tenantId], references: [id])
+  startDate     DateTime
+  endDate       DateTime
+  rentAmount    Decimal     @db.Decimal(14, 2)
+  depositAmount Decimal?    @db.Decimal(14, 2)
+  agreementUrl  String?
+  status        LeaseStatus @default(ACTIVE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  rentPayments  RentPayment[]
+  utilityBills  UtilityBill[]
+  maintenance   MaintenanceRequest[]
+  conversations Conversation[]
+
+  @@index([unitId])
+  @@index([tenantId])
+}
+
+// One row per month, uploaded by the tenant as proof of payment, then
+// approved/rejected by whoever controls the unit (owner or plaza manager).
+model RentPayment {
+  id           String            @id @default(cuid())
+  leaseId      String
+  lease        Lease             @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  forMonth     DateTime
+  amount       Decimal           @db.Decimal(14, 2)
+  proofUrl     String?
+  status       RentPaymentStatus @default(SUBMITTED)
+  note         String?
+  reviewedById String?
+  reviewedBy   User?             @relation("RentPaymentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  createdAt    DateTime          @default(now())
+
+  @@index([leaseId])
+}
+
+// Utility bill records for a tenancy — uploaded by the tenant, tracked by
+// whoever controls the unit.
+model UtilityBill {
+  id          String      @id @default(cuid())
+  leaseId     String
+  lease       Lease       @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  type        UtilityType
+  billMonth   DateTime
+  amount      Decimal     @db.Decimal(14, 2)
+  documentUrl String?
+  status      BillStatus  @default(SUBMITTED)
+  createdAt   DateTime    @default(now())
+
+  @@index([leaseId])
+}
+
+// A lightweight maintenance/repair log a tenant or the unit's owner/manager
+// can raise against a lease, with an optional cost once quoted.
+model MaintenanceRequest {
+  id          String            @id @default(cuid())
+  leaseId     String
+  lease       Lease             @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  raisedById  String
+  raisedBy    User              @relation("MaintenanceRaisedBy", fields: [raisedById], references: [id])
+  title       String
+  description String?
+  cost        Decimal?          @db.Decimal(14, 2)
+  status      MaintenanceStatus @default(OPEN)
+  resolvedAt  DateTime?
+  createdAt   DateTime          @default(now())
+
+  @@index([leaseId])
+}

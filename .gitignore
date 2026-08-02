@@ -1,0 +1,21 @@
+# dependencies (npm workspaces hoist most of this to the root)
+node_modules/
+
+# OS
+.DS_Store
+
+# editors
+.vscode/
+.idea/
+
+# env
+.env
+.env.local
+.env*.local
+
+# logs
+npm-debug.log*
+*.log
+
+# local database dumps (not source, don't commit)
+database-dump.sql

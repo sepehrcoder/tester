@@ -1,0 +1,239 @@
+@import "tailwindcss";
+
+/*
+ * Aurora Glass tokens.
+ *
+ * Source of truth is `packages/theme/src/tokens.ts` — Tailwind v4 reads its
+ * theme from CSS, not JS, so these are a hand-kept mirror. If you change a
+ * value, change it in both places.
+ */
+:root {
+  --void: #06080c;
+  --void-2: #0b0f16;
+  --ink: #f3f6fa;
+  --ink-soft: #98a5b8;
+  --ink-faint: #586274;
+
+  --glass-bg: rgba(20, 24, 34, 0.55);
+  --glass-bg-strong: rgba(13, 16, 24, 0.74);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-edge: rgba(255, 255, 255, 0.2);
+
+  --flat-bg: #10141c;
+  --flat-border: rgba(255, 255, 255, 0.07);
+
+  --ember: #ff5c39;
+  --ember-ink: #120602;
+  --ember-glow: rgba(255, 92, 57, 0.45);
+
+  --teal: #34e0b0;
+  --teal-soft: rgba(52, 224, 176, 0.14);
+
+  --violet: #7c5cff;
+  --cyan: #22d3ee;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --void: #eef1f7;
+    --void-2: #ffffff;
+    --ink: #10141c;
+    --ink-soft: #4b5768;
+    --ink-faint: #8793a3;
+
+    --glass-bg: rgba(255, 255, 255, 0.55);
+    --glass-bg-strong: rgba(255, 255, 255, 0.78);
+    --glass-border: rgba(16, 20, 28, 0.08);
+    --glass-edge: rgba(255, 255, 255, 0.95);
+
+    --flat-bg: #ffffff;
+    --flat-border: rgba(16, 20, 28, 0.08);
+
+    --ember: #e8481f;
+    --ember-ink: #ffffff;
+    --ember-glow: rgba(232, 72, 31, 0.28);
+
+    --teal: #0ea37f;
+    --teal-soft: rgba(14, 163, 127, 0.12);
+
+    --violet: #6a4fe0;
+    --cyan: #0ea5c4;
+  }
+}
+
+/* Registers a subset of the tokens above as Tailwind utilities:
+   bg-ember, text-ink-soft, rounded-lg (overridden to 16px), shadow-glass, font-display, etc. */
+@theme inline {
+  --color-void: var(--void);
+  --color-void-2: var(--void-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-flat: var(--flat-bg);
+  --color-flat-border: var(--flat-border);
+  --color-ember: var(--ember);
+  --color-ember-ink: var(--ember-ink);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-violet: var(--violet);
+  --color-cyan: var(--cyan);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+
+  --shadow-glass: 0 24px 64px rgba(0, 0, 0, 0.35);
+  --shadow-ember-glow: 0 8px 24px var(--ember-glow);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  color: var(--ink);
+  background: var(--void);
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display), -apple-system, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  margin: 0;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Elevation tiers — see packages/theme tokens.elevation for the rule this encodes ---- */
+
+/* Tier 1: flat. List content — property cards, chat rows. Never blurred. */
+.surface-flat {
+  background: var(--flat-bg);
+  border: 1px solid var(--flat-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Tier 2: glass. Cards you tap into — detail headers, stat tiles. */
+.surface-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-glass),
+    inset 0 1px 0 var(--glass-edge);
+}
+
+/* Tier 3: glass strong. Fixed chrome only — nav, tab bar, sheets, modals. */
+.surface-glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(30px) saturate(170%);
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--shadow-glass),
+    inset 0 1px 0 var(--glass-edge);
+}
+
+/* ---- Aurora backdrop — one single fixed layer, never redrawn per-component ---- */
+.aurora-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(46vw 46vw at var(--ax1, 14%) var(--ay1, 10%), color-mix(in srgb, var(--violet) 55%, transparent), transparent 62%),
+    radial-gradient(40vw 40vw at var(--ax2, 88%) var(--ay2, 18%), color-mix(in srgb, var(--cyan) 48%, transparent), transparent 60%),
+    radial-gradient(50vw 50vw at var(--ax3, 68%) var(--ay3, 98%), color-mix(in srgb, var(--ember) 42%, transparent), transparent 62%),
+    var(--void);
+  filter: blur(60px) saturate(140%);
+  opacity: 0.55;
+}
+
+@media (prefers-color-scheme: light) {
+  .aurora-backdrop {
+    opacity: 0.3;
+    filter: blur(70px) saturate(130%);
+  }
+}
+
+@property --ax1 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 14%;
+}
+@property --ay1 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 10%;
+}
+@property --ax2 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 88%;
+}
+@property --ay2 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 18%;
+}
+@property --ax3 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 68%;
+}
+@property --ay3 {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 98%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .aurora-backdrop {
+    animation: aurora-drift 26s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes aurora-drift {
+  0% {
+    --ax1: 14%;
+    --ay1: 10%;
+    --ax2: 88%;
+    --ay2: 18%;
+    --ax3: 68%;
+    --ay3: 98%;
+  }
+  100% {
+    --ax1: 22%;
+    --ay1: 22%;
+    --ax2: 78%;
+    --ay2: 8%;
+    --ax3: 56%;
+    --ay3: 88%;
+  }
+}
+
+::selection {
+  background: var(--ember);
+  color: var(--ember-ink);
+}
