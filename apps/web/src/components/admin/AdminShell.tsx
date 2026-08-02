@@ -13,16 +13,21 @@ import {
   IconAlert,
   IconReport,
   IconDocument,
+  IconBilling,
   IconLogout,
 } from "@repo/icons/web";
 import { useAuth } from "@/providers/AuthProvider";
+import { NotificationBell } from "@/components/shared/NotificationBell";
 
 const NAV: { href: string; label: string; icon: typeof IconAnalytics; exact?: boolean }[] = [
   { href: "/admin", label: "Dashboard", icon: IconAnalytics, exact: true },
   { href: "/admin/users", label: "Users", icon: IconProfile },
   { href: "/admin/dealers", label: "Dealers", icon: IconClients },
+  { href: "/admin/companies", label: "Companies", icon: IconClients },
   { href: "/admin/listings", label: "Listings", icon: IconBuilding },
   { href: "/admin/leads", label: "Leads", icon: IconLead },
+  { href: "/admin/plazas", label: "Plazas", icon: IconBuilding },
+  { href: "/admin/leases", label: "Leases", icon: IconBilling },
   { href: "/admin/chat", label: "Chat monitoring", icon: IconChat },
   { href: "/admin/flagged", label: "Flagged queue", icon: IconAlert },
   { href: "/admin/reports", label: "Reports", icon: IconReport },
@@ -72,7 +77,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 p-8">{children}</main>
+      <main className="min-w-0 flex-1 p-8">
+        <div className="mb-4 flex justify-end">
+          <NotificationBell />
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

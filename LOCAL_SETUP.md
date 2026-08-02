@@ -57,15 +57,32 @@ This matters, so it's stated plainly rather than left for you to discover.
     `Message` model as the rest of the app (REST, polled every few
     seconds on the frontend) — nothing new to moderate, the admin
     console's chat monitoring already covers it.
+  - A lease whose end date passes gets closed out automatically by an
+    hourly scheduled job (status → `ENDED`, unit → `VACANT`, both parties
+    notified) — mirrors the existing 6-hour SLA-release cron on the lead
+    mechanic, so an owner who forgets to click "End lease" doesn't
+    permanently lose the ability to re-let the unit.
 - Four screens on web: Home (live listings from the API), Login, Register
   (now with a Buyer/Owner, Dealer, or Company account-type picker), Verify
   OTP.
 - **A full admin console UI** at `/admin` (web only, sign in with the admin
-  account below): dashboard stats, users, dealers with KYC approve/reject,
-  listings with moderation actions, a leads overview, chat monitoring
-  (conversation list + a read-only thread viewer that highlights flagged
-  messages), the flagged-message queue, reports with resolve/dismiss, and
-  the audit log. All of it hits the real API — nothing mocked.
+  account below): dashboard stats (marketplace *and* companies/property
+  management in one view), a Users list covering every non-dealer role
+  (customer/company/tenant/plaza manager, with a role column), dealers with
+  KYC approve/reject, companies, listings with moderation actions, a leads
+  overview, plazas, leases (read-only oversight — who owes a review, not an
+  approve/reject action, since that decision belongs to the unit's owner or
+  manager), chat monitoring (conversation list + a read-only thread viewer
+  that highlights flagged messages), the flagged-message queue, reports
+  with resolve/dismiss, and the audit log. All of it hits the real API —
+  nothing mocked, and there's now no account type or data model admin can't
+  see.
+- **A working notification bell**, top-right on every dashboard/admin
+  console and on the marketing nav once signed in: unread badge, a
+  dropdown of recent notifications, click-to-mark-read, mark-all-read.
+  Covers lead broadcast/accept/SLA-release, a new lease starting, a rent
+  payment being submitted *and* reviewed, a utility bill being submitted,
+  and a maintenance request being raised *and* updated.
 - **Five more role-specific dashboards, also web-only and fully wired to
   the real API:**
   - `/dashboard` — the buyer/seller (customer) dashboard: an overview of
@@ -76,7 +93,9 @@ This matters, so it's stated plainly rather than left for you to discover.
     move a tenant in, review their payments/bills/maintenance, chat).
   - `/dealer` — the dealer's own console: performance stats (active leads,
     accepted/closed/conversion rate, rating), a table of every lead you've
-    ever claimed, your own listings, and a Company tab to join or leave an
+    ever claimed, your own listings, a **"My rentals"** tab (dealers can own
+    and manage rental properties too — the backend always allowed it, this
+    is where you actually reach it), and a Company tab to join or leave an
     agency by invite code.
   - `/company` — the company/agency console: register with the "Company"
     account type to get an invite code, share it with your dealers, and
@@ -107,8 +126,39 @@ built), the in-app chat UI for customers/dealers, search filters wired to
 the real API, a requirement-posting form, etc. The **backend API for almost
 all of this already exists and is tested** (see the smoke-test description
 below) — it's the frontend screens that are the next round of work. Admin
-and the four role dashboards are the sides that are now fully built out, UI
+and the six role dashboards are the sides that are now fully built out, UI
 included.
+
+**Audited and hardened.** The whole platform went through a dedicated
+correctness/security/completeness pass after the property-management layer
+was added, and every real finding was fixed and re-verified live (not just
+patched and assumed correct):
+- A **race condition** in lease creation — two concurrent requests could
+  both succeed and put a unit in an inconsistent state — is now closed with
+  the same atomic-claim pattern the lead-accept mechanic already used;
+  verified with real concurrent requests (exactly one wins).
+- A **validation bypass** on the plaza-update endpoint (a plaza manager
+  could inject arbitrary fields, including reassigning `managerId` to
+  someone else) is fixed; verified the exact injection attempt now gets
+  rejected.
+- **Access tokens are now refreshed transparently.** They're short-lived
+  (15 minutes) by design, and until this pass, nothing in the frontend ever
+  refreshed one — every session silently broke after 15 minutes with no way
+  back short of manually signing out and back in. `apiFetch` now retries
+  once through `/auth/refresh` on a 401 before giving up, and only signs
+  the user out if the refresh itself fails; verified by shortening the
+  token lifetime to a few seconds and confirming a live session survives
+  expiry with no visible interruption.
+- Fixed a `&lt;input type="month"&gt;` bug where the rent-payment and
+  utility-bill forms would visually blank themselves the moment you picked
+  a month (the value still submitted correctly underneath, but it looked
+  broken).
+- A handful of list endpoints (admin's full conversation list, several
+  property-management lists) had no row cap; all now match the `take: 200`
+  convention used everywhere else in the API.
+- Several tenant pages had no error handling on load — a transient failure
+  left them stuck on "Loading…" forever; all now show a real error with a
+  retry action.
 
 ## Prerequisites
 

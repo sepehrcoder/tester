@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { apiFetch, ApiError } from "@/lib/api";
+import { apiFetch, ApiError, registerAuthHandlers, TOKEN_STORAGE_KEY, type TokenPair } from "@/lib/api";
 
 export interface CurrentUser {
   id: string;
@@ -10,11 +10,6 @@ export interface CurrentUser {
   phone: string;
   email?: string | null;
   dealerProfile?: { kycStatus: string; agencyName?: string | null } | null;
-}
-
-interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
 }
 
 interface RegisterResult {
@@ -42,11 +37,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STORAGE_KEY = "marketplace.tokens";
-
 function readStoredToken(): string | null {
   if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const stored = window.localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!stored) return null;
   return (JSON.parse(stored) as TokenPair).accessToken;
 }
@@ -61,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     apiFetch<CurrentUser>("/auth/me", { token: accessToken })
       .then(setUser)
       .catch(() => {
-        window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
         setAccessToken(null);
       })
       .finally(() => setLoading(false));
@@ -71,9 +64,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   function persist(tokens: TokenPair) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
+    window.localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens));
     setAccessToken(tokens.accessToken);
   }
+
+  // apiFetch runs outside React and can't call hooks — it refreshes the
+  // access token directly against localStorage on a 401, then reports back
+  // through these two handlers so the live session (not just storage) picks
+  // up the new token, or gets signed out cleanly if the refresh itself fails
+  // (e.g. the 30-day refresh token has also expired).
+  useEffect(() => {
+    registerAuthHandlers({
+      onTokensRefreshed: (tokens) => setAccessToken(tokens.accessToken),
+      onSessionExpired: () => {
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+        setUser(null);
+        setAccessToken(null);
+      },
+    });
+  }, []);
 
   async function login(phone: string, password: string) {
     const tokens = await apiFetch<TokenPair>("/auth/login", { method: "POST", body: { phone, password } });
@@ -101,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
     setUser(null);
     setAccessToken(null);
   }

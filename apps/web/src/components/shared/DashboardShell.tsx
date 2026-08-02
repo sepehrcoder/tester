@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconLogout } from "@repo/icons/web";
 import { useAuth } from "@/providers/AuthProvider";
+import { NotificationBell } from "@/components/shared/NotificationBell";
 
 export interface DashboardNavItem {
   href: string;
@@ -67,7 +68,12 @@ export function DashboardShell({
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 p-8">{children}</main>
+      <main className="min-w-0 flex-1 p-8">
+        <div className="mb-4 flex justify-end">
+          <NotificationBell />
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

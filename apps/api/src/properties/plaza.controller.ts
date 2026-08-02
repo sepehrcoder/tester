@@ -11,6 +11,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PlazaService } from './plaza.service';
 import { PropertiesService } from './properties.service';
 import { CreatePlazaDto } from './dto/create-plaza.dto';
+import { UpdatePlazaDto } from './dto/update-plaza.dto';
 import { CreateRentalUnitDto } from './dto/create-rental-unit.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -48,7 +49,7 @@ export class PlazaController {
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
-    @Body() dto: Partial<CreatePlazaDto>,
+    @Body() dto: UpdatePlazaDto,
   ) {
     return this.plazas.update(id, user, dto);
   }

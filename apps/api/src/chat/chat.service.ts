@@ -19,6 +19,7 @@ export class ChatService {
         lease: { include: { unit: { select: { id: true, title: true } } } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
   }
 
@@ -59,6 +60,7 @@ export class ChatService {
         _count: { select: { messages: { where: { flagged: true } } } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
   }
 

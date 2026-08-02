@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlazaDto } from './dto/create-plaza.dto';
+import { UpdatePlazaDto } from './dto/update-plaza.dto';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 
 @Injectable()
@@ -65,11 +66,7 @@ export class PlazaService {
     return plaza;
   }
 
-  async update(
-    id: string,
-    manager: AuthenticatedUser,
-    dto: Partial<CreatePlazaDto>,
-  ) {
+  async update(id: string, manager: AuthenticatedUser, dto: UpdatePlazaDto) {
     const plaza = await this.prisma.plaza.findUnique({ where: { id } });
     if (!plaza) throw new NotFoundException('Plaza not found');
     if (plaza.managerId !== manager.id) throw new ForbiddenException();

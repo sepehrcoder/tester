@@ -18,6 +18,9 @@ export class AdminService {
     const [
       totalUsers,
       totalDealers,
+      totalCompanies,
+      totalPlazaManagers,
+      totalTenants,
       pendingKyc,
       listingsPending,
       listingsApproved,
@@ -26,9 +29,17 @@ export class AdminService {
       leadsAccepted,
       flaggedMessages,
       openReports,
+      totalPlazas,
+      totalRentalUnits,
+      activeLeases,
+      rentPaymentsPendingReview,
+      openMaintenance,
     ] = await this.prisma.$transaction([
       this.prisma.user.count({ where: { role: 'CUSTOMER' } }),
       this.prisma.user.count({ where: { role: 'DEALER' } }),
+      this.prisma.user.count({ where: { role: 'COMPANY' } }),
+      this.prisma.user.count({ where: { role: 'PLAZA_MANAGER' } }),
+      this.prisma.user.count({ where: { role: 'TENANT' } }),
       this.prisma.dealerProfile.count({ where: { kycStatus: 'PENDING' } }),
       this.prisma.listing.count({ where: { status: 'PENDING' } }),
       this.prisma.listing.count({ where: { status: 'APPROVED' } }),
@@ -37,11 +48,21 @@ export class AdminService {
       this.prisma.lead.count({ where: { status: 'ACCEPTED' } }),
       this.prisma.message.count({ where: { flagged: true } }),
       this.prisma.report.count({ where: { status: 'OPEN' } }),
+      this.prisma.plaza.count(),
+      this.prisma.rentalUnit.count(),
+      this.prisma.lease.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.rentPayment.count({ where: { status: 'SUBMITTED' } }),
+      this.prisma.maintenanceRequest.count({
+        where: { status: { not: 'RESOLVED' } },
+      }),
     ]);
 
     return {
       totalUsers,
       totalDealers,
+      totalCompanies,
+      totalPlazaManagers,
+      totalTenants,
       pendingKyc,
       listingsPending,
       listingsApproved,
@@ -50,13 +71,77 @@ export class AdminService {
       leadsAccepted,
       flaggedMessages,
       openReports,
+      totalPlazas,
+      totalRentalUnits,
+      activeLeases,
+      rentPaymentsPendingReview,
+      openMaintenance,
     };
   }
 
   listUsers() {
     return this.prisma.user.findMany({
-      where: { role: 'CUSTOMER' },
+      where: { role: { notIn: ['ADMIN', 'DEALER'] } },
       omit: { passwordHash: true },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+  }
+
+  listCompanies() {
+    return this.prisma.company.findMany({
+      include: {
+        owner: { select: { id: true, name: true, phone: true } },
+        _count: { select: { dealers: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+  }
+
+  async listPlazas() {
+    const plazas = await this.prisma.plaza.findMany({
+      include: {
+        manager: { select: { id: true, name: true, phone: true } },
+        _count: { select: { units: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+
+    const occupancy = await this.prisma.rentalUnit.groupBy({
+      by: ['plazaId', 'occupancy'],
+      where: { plazaId: { in: plazas.map((p) => p.id) } },
+      _count: true,
+    });
+
+    return plazas.map((plaza) => ({
+      ...plaza,
+      unitCount: plaza._count.units,
+      occupiedCount:
+        occupancy.find(
+          (o) => o.plazaId === plaza.id && o.occupancy === 'OCCUPIED',
+        )?._count ?? 0,
+    }));
+  }
+
+  leasesOverview() {
+    return this.prisma.lease.findMany({
+      include: {
+        tenant: { select: { id: true, name: true, phone: true } },
+        unit: {
+          include: {
+            plaza: { select: { id: true, name: true } },
+            owner: { select: { id: true, name: true } },
+          },
+        },
+        _count: {
+          select: {
+            rentPayments: { where: { status: 'SUBMITTED' } },
+            maintenance: { where: { status: { not: 'RESOLVED' } } },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: 200,
     });

@@ -21,6 +21,7 @@ export function LeaseChatPanel({ leaseId }: { leaseId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export function LeaseChatPanel({ leaseId }: { leaseId: string }) {
     let interval: ReturnType<typeof setInterval> | undefined;
 
     async function open() {
+      setError(null);
       try {
         const conversation = await apiFetch<{ id: string }>(`/leases/${leaseId}/chat`, {
           method: "POST",
@@ -36,9 +38,21 @@ export function LeaseChatPanel({ leaseId }: { leaseId: string }) {
         if (cancelled) return;
         setConversationId(conversation.id);
 
+        // Merge by id rather than replace wholesale — a poll response that
+        // was already in flight when the user sent a message would
+        // otherwise overwrite the optimistic append with a list that
+        // predates it, making the just-sent message flicker out until the
+        // next cycle.
         const load = () =>
           apiFetch<Message[]>(`/chat/conversations/${conversation.id}/messages`, { token: accessToken })
-            .then((msgs) => !cancelled && setMessages(msgs))
+            .then((msgs) => {
+              if (cancelled) return;
+              setMessages((prev) => {
+                const byId = new Map(msgs.map((m) => [m.id, m]));
+                for (const m of prev) if (!byId.has(m.id)) byId.set(m.id, m);
+                return Array.from(byId.values()).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+              });
+            })
             .catch(() => {});
         load();
         interval = setInterval(load, POLL_MS);
@@ -52,7 +66,7 @@ export function LeaseChatPanel({ leaseId }: { leaseId: string }) {
       cancelled = true;
       if (interval) clearInterval(interval);
     };
-  }, [leaseId, accessToken]);
+  }, [leaseId, accessToken, retryNonce]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -70,6 +84,7 @@ export function LeaseChatPanel({ leaseId }: { leaseId: string }) {
         body: { body },
       });
       setMessages((prev) => [...prev, message]);
+      setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Message failed to send");
     }
@@ -77,7 +92,17 @@ export function LeaseChatPanel({ leaseId }: { leaseId: string }) {
 
   return (
     <div className="surface-flat flex h-96 flex-col p-4">
-      {error && <p className="mb-2 font-body text-xs text-ember">{error}</p>}
+      {error && (
+        <div className="mb-2 flex items-center gap-2">
+          <p className="font-body text-xs text-ember">{error}</p>
+          <button
+            onClick={() => setRetryNonce((n) => n + 1)}
+            className="font-body text-xs font-semibold text-teal"
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className="flex-1 space-y-2 overflow-y-auto pr-1">
         {messages.length === 0 && <p className="font-body text-sm text-ink-faint">No messages yet — say hello.</p>}
         {messages.map((m) => {

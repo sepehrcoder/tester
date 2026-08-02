@@ -26,19 +26,25 @@ export default function TenantPaymentsPage() {
   const { accessToken } = useAuth();
   const [lease, setLease] = useState<Lease | null | undefined>(undefined);
   const [payments, setPayments] = useState<RentPayment[]>([]);
-  const [forMonth, setForMonth] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [monthRaw, setMonthRaw] = useState("");
   const [amount, setAmount] = useState("");
   const [proofUrl, setProofUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const leases = await apiFetch<Lease[]>("/leases/mine", { token: accessToken });
-    const active = leases.find((l) => l.status === "ACTIVE") ?? null;
-    setLease(active);
-    if (active) {
-      const p = await apiFetch<RentPayment[]>(`/leases/${active.id}/rent-payments`, { token: accessToken });
-      setPayments(p);
+    setLoadError(null);
+    try {
+      const leases = await apiFetch<Lease[]>("/leases/mine", { token: accessToken });
+      const active = leases.find((l) => l.status === "ACTIVE") ?? null;
+      setLease(active);
+      if (active) {
+        const p = await apiFetch<RentPayment[]>(`/leases/${active.id}/rent-payments`, { token: accessToken });
+        setPayments(p);
+      }
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Something went wrong");
     }
   }, [accessToken]);
 
@@ -56,9 +62,9 @@ export default function TenantPaymentsPage() {
       await apiFetch(`/leases/${lease.id}/rent-payments`, {
         method: "POST",
         token: accessToken,
-        body: { forMonth, amount: Number(amount), ...(proofUrl ? { proofUrl } : {}) },
+        body: { forMonth: `${monthRaw}-01`, amount: Number(amount), ...(proofUrl ? { proofUrl } : {}) },
       });
-      setForMonth("");
+      setMonthRaw("");
       setAmount("");
       setProofUrl("");
       await reload();
@@ -73,20 +79,21 @@ export default function TenantPaymentsPage() {
     <div>
       <PageHeader title="Rent payments" subtitle="Submit proof each month, and track review status." />
 
-      {lease === undefined && <p className="font-body text-sm text-ink-soft">Loading…</p>}
-      {lease === null && <p className="font-body text-sm text-ink-soft">No active lease yet.</p>}
+      {lease === undefined && !loadError && <p className="font-body text-sm text-ink-soft">Loading…</p>}
+      {loadError && (
+        <div className="mb-4 flex items-center gap-3">
+          <p className="font-body text-sm text-ember">{loadError}</p>
+          <button onClick={reload} className="font-body text-sm font-semibold text-teal">
+            Retry
+          </button>
+        </div>
+      )}
+      {lease === null && !loadError && <p className="font-body text-sm text-ink-soft">No active lease yet.</p>}
 
       {lease && (
         <>
           <form onSubmit={submit} className="surface-flat mb-6 flex flex-wrap items-end gap-3 p-5">
-            <TextField
-              label="Month"
-              name="forMonth"
-              type="month"
-              value={forMonth}
-              onChange={(e) => setForMonth(e.target.value ? `${e.target.value}-01` : "")}
-              required
-            />
+            <TextField label="Month" name="forMonth" type="month" value={monthRaw} onChange={(e) => setMonthRaw(e.target.value)} required />
             <TextField label="Amount (PKR)" name="amount" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} required />
             <TextField label="Proof URL (optional)" name="proofUrl" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} />
             <Button variant="primary" type="submit" disabled={busy}>

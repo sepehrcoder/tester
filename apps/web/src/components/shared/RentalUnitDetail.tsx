@@ -30,7 +30,7 @@ interface RentalUnit {
   monthlyRent: string;
   occupancy: string;
   floorNumber: number | null;
-  plaza: { id: string; name: string } | null;
+  plaza: { id: string; name: string; managerId: string } | null;
   owner: { id: string; name: string; phone: string } | null;
   leases: Lease[];
 }
@@ -106,7 +106,7 @@ export function RentalUnitDetail({ unitId }: { unitId: string }) {
     reload();
   }, [reload]);
 
-  const isController = !!unit && (unit.owner?.id === user?.id || (unit.plaza !== null && user?.role === "PLAZA_MANAGER"));
+  const isController = !!unit && (unit.owner?.id === user?.id || unit.plaza?.managerId === user?.id);
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
@@ -147,7 +147,7 @@ export function RentalUnitDetail({ unitId }: { unitId: string }) {
           <span className="font-body text-sm font-normal text-ink-soft"> / month</span>
         </p>
         {unit.owner && <p className="mt-1 font-body text-xs text-ink-soft">Owner: {unit.owner.name}</p>}
-        {unit.plaza && !unit.owner && user?.role === "PLAZA_MANAGER" && (
+        {unit.plaza && !unit.owner && unit.plaza.managerId === user?.id && (
           <LinkOwnerForm unitId={unit.id} onLinked={reload} />
         )}
       </div>
@@ -455,7 +455,7 @@ function CreateLeaseForm({ unitId, onCreated }: { unitId: string; onCreated: () 
 
 function RentPaymentForm({ leaseId, onSubmitted }: { leaseId: string; onSubmitted: () => void }) {
   const { accessToken } = useAuth();
-  const [forMonth, setForMonth] = useState("");
+  const [monthRaw, setMonthRaw] = useState("");
   const [amount, setAmount] = useState("");
   const [proofUrl, setProofUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -469,9 +469,9 @@ function RentPaymentForm({ leaseId, onSubmitted }: { leaseId: string; onSubmitte
       await apiFetch(`/leases/${leaseId}/rent-payments`, {
         method: "POST",
         token: accessToken,
-        body: { forMonth, amount: Number(amount), ...(proofUrl ? { proofUrl } : {}) },
+        body: { forMonth: `${monthRaw}-01`, amount: Number(amount), ...(proofUrl ? { proofUrl } : {}) },
       });
-      setForMonth("");
+      setMonthRaw("");
       setAmount("");
       setProofUrl("");
       onSubmitted();
@@ -484,7 +484,7 @@ function RentPaymentForm({ leaseId, onSubmitted }: { leaseId: string; onSubmitte
 
   return (
     <form onSubmit={submit} className="mt-3 flex flex-wrap items-end gap-2">
-      <TextField label="Month" name="forMonth" type="month" value={forMonth} onChange={(e) => setForMonth(e.target.value ? `${e.target.value}-01` : "")} required />
+      <TextField label="Month" name="forMonth" type="month" value={monthRaw} onChange={(e) => setMonthRaw(e.target.value)} required />
       <TextField label="Amount (PKR)" name="amount" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} required />
       <TextField label="Proof URL (optional)" name="proofUrl" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} />
       <Button variant="secondary" type="submit" disabled={busy}>
@@ -498,7 +498,7 @@ function RentPaymentForm({ leaseId, onSubmitted }: { leaseId: string; onSubmitte
 function UtilityBillForm({ leaseId, onSubmitted }: { leaseId: string; onSubmitted: () => void }) {
   const { accessToken } = useAuth();
   const [type, setType] = useState("ELECTRICITY");
-  const [billMonth, setBillMonth] = useState("");
+  const [monthRaw, setMonthRaw] = useState("");
   const [amount, setAmount] = useState("");
   const [documentUrl, setDocumentUrl] = useState("");
   const [busy, setBusy] = useState(false);
@@ -512,9 +512,9 @@ function UtilityBillForm({ leaseId, onSubmitted }: { leaseId: string; onSubmitte
       await apiFetch(`/leases/${leaseId}/utility-bills`, {
         method: "POST",
         token: accessToken,
-        body: { type, billMonth, amount: Number(amount), ...(documentUrl ? { documentUrl } : {}) },
+        body: { type, billMonth: `${monthRaw}-01`, amount: Number(amount), ...(documentUrl ? { documentUrl } : {}) },
       });
-      setBillMonth("");
+      setMonthRaw("");
       setAmount("");
       setDocumentUrl("");
       onSubmitted();
@@ -537,7 +537,7 @@ function UtilityBillForm({ leaseId, onSubmitted }: { leaseId: string; onSubmitte
           ))}
         </select>
       </label>
-      <TextField label="Month" name="billMonth" type="month" value={billMonth} onChange={(e) => setBillMonth(e.target.value ? `${e.target.value}-01` : "")} required />
+      <TextField label="Month" name="billMonth" type="month" value={monthRaw} onChange={(e) => setMonthRaw(e.target.value)} required />
       <TextField label="Amount (PKR)" name="amount" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} required />
       <TextField label="Document URL (optional)" name="documentUrl" value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} />
       <Button variant="secondary" type="submit" disabled={busy}>

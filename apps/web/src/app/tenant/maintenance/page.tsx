@@ -29,14 +29,20 @@ export default function TenantMaintenancePage() {
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const leases = await apiFetch<Lease[]>("/leases/mine", { token: accessToken });
-    const active = leases.find((l) => l.status === "ACTIVE") ?? null;
-    setLease(active);
-    if (active) {
-      const m = await apiFetch<MaintenanceItem[]>(`/leases/${active.id}/maintenance`, { token: accessToken });
-      setItems(m);
+    setLoadError(null);
+    try {
+      const leases = await apiFetch<Lease[]>("/leases/mine", { token: accessToken });
+      const active = leases.find((l) => l.status === "ACTIVE") ?? null;
+      setLease(active);
+      if (active) {
+        const m = await apiFetch<MaintenanceItem[]>(`/leases/${active.id}/maintenance`, { token: accessToken });
+        setItems(m);
+      }
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Something went wrong");
     }
   }, [accessToken]);
 
@@ -70,8 +76,16 @@ export default function TenantMaintenancePage() {
     <div>
       <PageHeader title="Maintenance" subtitle="Raise an issue and track it through to resolved." />
 
-      {lease === undefined && <p className="font-body text-sm text-ink-soft">Loading…</p>}
-      {lease === null && <p className="font-body text-sm text-ink-soft">No active lease yet.</p>}
+      {lease === undefined && !loadError && <p className="font-body text-sm text-ink-soft">Loading…</p>}
+      {loadError && (
+        <div className="mb-4 flex items-center gap-3">
+          <p className="font-body text-sm text-ember">{loadError}</p>
+          <button onClick={reload} className="font-body text-sm font-semibold text-teal">
+            Retry
+          </button>
+        </div>
+      )}
+      {lease === null && !loadError && <p className="font-body text-sm text-ink-soft">No active lease yet.</p>}
 
       {lease && (
         <>

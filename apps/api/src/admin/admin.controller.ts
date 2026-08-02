@@ -73,6 +73,21 @@ export class AdminController {
     return this.admin.leadsOverview();
   }
 
+  @Get('companies')
+  listCompanies() {
+    return this.admin.listCompanies();
+  }
+
+  @Get('plazas')
+  listPlazas() {
+    return this.admin.listPlazas();
+  }
+
+  @Get('leases')
+  leasesOverview() {
+    return this.admin.leasesOverview();
+  }
+
   @Get('chat/conversations')
   chatConversations() {
     return this.chat.adminListConversations();

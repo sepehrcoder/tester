@@ -66,6 +66,7 @@ export class PropertiesService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
   }
 
@@ -83,6 +84,7 @@ export class PropertiesService {
         },
       },
       orderBy: [{ plazaId: 'asc' }, { floorNumber: 'asc' }],
+      take: 200,
     });
   }
 
@@ -162,8 +164,22 @@ export class PropertiesService {
       );
     }
 
-    const [lease] = await this.prisma.$transaction([
-      this.prisma.lease.create({
+    // Atomic claim + create in one transaction: the updateMany only flips
+    // VACANT -> OCCUPIED if it's still VACANT at write time, so two
+    // concurrent lease requests for the same unit can't both succeed
+    // (mirrors the lead-accept race guard in leads.service.ts). Wrapping the
+    // lease insert in the same transaction means a failed insert rolls the
+    // occupancy flip back too, instead of leaving the unit stuck OCCUPIED.
+    const lease = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.rentalUnit.updateMany({
+        where: { id: unitId, occupancy: 'VACANT' },
+        data: { occupancy: 'OCCUPIED' },
+      });
+      if (claimed.count === 0) {
+        throw new BadRequestException('This unit already has an active lease');
+      }
+
+      return tx.lease.create({
         data: {
           unitId,
           tenantId: tenant.id,
@@ -173,12 +189,8 @@ export class PropertiesService {
           depositAmount: dto.depositAmount,
           agreementUrl: dto.agreementUrl,
         },
-      }),
-      this.prisma.rentalUnit.update({
-        where: { id: unitId },
-        data: { occupancy: 'OCCUPIED' },
-      }),
-    ]);
+      });
+    });
 
     await this.notifications.create(
       tenant.id,
@@ -207,6 +219,54 @@ export class PropertiesService {
     return { id, status: 'ENDED' as const };
   }
 
+  // Runs on a schedule (see PropertiesScheduler) — a lease whose endDate has
+  // passed doesn't auto-end itself; nothing else in the mechanic ever
+  // revisits it, so without this an owner who forgets to click "End lease"
+  // keeps the unit permanently un-leasable and the tenant permanently
+  // "active" in their portal. Mirrors LeadsService.releaseExpiredLeases.
+  async expireOverdueLeases() {
+    const overdue = await this.prisma.lease.findMany({
+      where: { status: 'ACTIVE', endDate: { lt: new Date() } },
+      select: {
+        id: true,
+        unitId: true,
+        tenantId: true,
+        unit: {
+          select: {
+            title: true,
+            ownerId: true,
+            plaza: { select: { managerId: true } },
+          },
+        },
+      },
+      take: 500,
+    });
+
+    for (const lease of overdue) {
+      await this.prisma.$transaction([
+        this.prisma.lease.update({
+          where: { id: lease.id },
+          data: { status: 'ENDED' },
+        }),
+        this.prisma.rentalUnit.update({
+          where: { id: lease.unitId },
+          data: { occupancy: 'VACANT' },
+        }),
+      ]);
+
+      const controllerId = lease.unit.ownerId ?? lease.unit.plaza?.managerId;
+      await this.notifications.createMany(
+        [lease.tenantId, controllerId].filter((id): id is string => !!id),
+        'LEASE_EXPIRED',
+        'A lease term has ended',
+        `The lease for "${lease.unit.title}" reached its end date and has been closed out automatically.`,
+        { leaseId: lease.id, unitId: lease.unitId },
+      );
+    }
+
+    return { expired: overdue.length };
+  }
+
   async getLease(id: string, user: AuthenticatedUser) {
     const lease = await this.loadLease(id);
     this.assertLeaseAccess(lease, user);
@@ -225,6 +285,7 @@ export class PropertiesService {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
   }
 
@@ -276,7 +337,7 @@ export class PropertiesService {
     if (!payment) throw new NotFoundException('Rent payment not found');
     this.assertUnitControl(payment.lease.unit, user);
 
-    return this.prisma.rentPayment.update({
+    const updated = await this.prisma.rentPayment.update({
       where: { id },
       data: {
         status: dto.status,
@@ -285,6 +346,19 @@ export class PropertiesService {
         reviewedAt: new Date(),
       },
     });
+
+    await this.notifications.create(
+      payment.lease.tenantId,
+      'RENT_PAYMENT_REVIEWED',
+      dto.status === 'APPROVED'
+        ? 'Your rent payment was approved'
+        : 'Your rent payment was rejected',
+      dto.note ||
+        `Your payment for "${payment.lease.unit.title}" was ${dto.status.toLowerCase()}.`,
+      { leaseId: payment.leaseId, rentPaymentId: payment.id },
+    );
+
+    return updated;
   }
 
   async listRentPayments(leaseId: string, user: AuthenticatedUser) {
@@ -294,6 +368,7 @@ export class PropertiesService {
       where: { leaseId },
       include: { reviewedBy: { select: { id: true, name: true } } },
       orderBy: { forMonth: 'desc' },
+      take: 200,
     });
   }
 
@@ -306,8 +381,10 @@ export class PropertiesService {
   ) {
     const lease = await this.loadLease(leaseId);
     if (lease.tenantId !== tenant.id) throw new ForbiddenException();
+    if (lease.status !== 'ACTIVE')
+      throw new BadRequestException('Lease is not active');
 
-    return this.prisma.utilityBill.create({
+    const bill = await this.prisma.utilityBill.create({
       data: {
         leaseId,
         type: dto.type,
@@ -316,6 +393,18 @@ export class PropertiesService {
         documentUrl: dto.documentUrl,
       },
     });
+
+    const controllerId = lease.unit.ownerId ?? lease.unit.plaza?.managerId;
+    if (controllerId) {
+      await this.notifications.create(
+        controllerId,
+        'UTILITY_BILL_SUBMITTED',
+        'A tenant uploaded a utility bill',
+        `${tenant.name} uploaded a ${dto.type.toLowerCase()} bill for "${lease.unit.title}".`,
+        { leaseId, utilityBillId: bill.id },
+      );
+    }
+    return bill;
   }
 
   async settleUtilityBill(id: string, user: AuthenticatedUser) {
@@ -340,6 +429,7 @@ export class PropertiesService {
     return this.prisma.utilityBill.findMany({
       where: { leaseId },
       orderBy: { billMonth: 'desc' },
+      take: 200,
     });
   }
 
@@ -352,8 +442,10 @@ export class PropertiesService {
   ) {
     const lease = await this.loadLease(leaseId);
     this.assertLeaseAccess(lease, user);
+    if (lease.status !== 'ACTIVE')
+      throw new BadRequestException('Lease is not active');
 
-    return this.prisma.maintenanceRequest.create({
+    const request = await this.prisma.maintenanceRequest.create({
       data: {
         leaseId,
         raisedById: user.id,
@@ -362,6 +454,19 @@ export class PropertiesService {
         cost: dto.cost,
       },
     });
+
+    const controllerId = lease.unit.ownerId ?? lease.unit.plaza?.managerId;
+    const notifyId = user.id === controllerId ? lease.tenantId : controllerId;
+    if (notifyId) {
+      await this.notifications.create(
+        notifyId,
+        'MAINTENANCE_REQUESTED',
+        'New maintenance request',
+        `${user.name} raised "${dto.title}" for "${lease.unit.title}".`,
+        { leaseId, maintenanceRequestId: request.id },
+      );
+    }
+    return request;
   }
 
   async updateMaintenance(
@@ -378,7 +483,7 @@ export class PropertiesService {
     if (!request) throw new NotFoundException('Maintenance request not found');
     this.assertUnitControl(request.lease.unit, user);
 
-    return this.prisma.maintenanceRequest.update({
+    const updated = await this.prisma.maintenanceRequest.update({
       where: { id },
       data: {
         status: dto.status,
@@ -386,6 +491,18 @@ export class PropertiesService {
         resolvedAt: dto.status === 'RESOLVED' ? new Date() : null,
       },
     });
+
+    if (request.raisedById !== user.id) {
+      await this.notifications.create(
+        request.raisedById,
+        'MAINTENANCE_UPDATED',
+        `Maintenance request ${dto.status === 'RESOLVED' ? 'resolved' : 'updated'}`,
+        `"${request.title}" is now ${dto.status.replaceAll('_', ' ').toLowerCase()}.`,
+        { leaseId: request.leaseId, maintenanceRequestId: request.id },
+      );
+    }
+
+    return updated;
   }
 
   async listMaintenance(leaseId: string, user: AuthenticatedUser) {
@@ -395,6 +512,7 @@ export class PropertiesService {
       where: { leaseId },
       include: { raisedBy: { select: { id: true, name: true, role: true } } },
       orderBy: { createdAt: 'desc' },
+      take: 200,
     });
   }
 

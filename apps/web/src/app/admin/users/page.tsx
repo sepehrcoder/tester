@@ -7,6 +7,7 @@ import { useAuthedFetch } from "@/lib/useAuthedFetch";
 
 interface AdminUser {
   id: string;
+  role: string;
   name: string;
   phone: string;
   email: string | null;
@@ -19,16 +20,17 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <PageHeader title="Users" subtitle="Every customer account on the platform." />
+      <PageHeader title="Users" subtitle="Every non-dealer account on the platform — customers, companies, tenants, and plaza managers." />
       {loading && <p className="font-body text-sm text-ink-soft">Loading…</p>}
       {error && <p className="font-body text-sm text-ember">{error}</p>}
       {data && (
         <Table
           rows={data}
           keyFor={(u) => u.id}
-          emptyMessage="No customers yet."
+          emptyMessage="No users yet."
           columns={[
             { header: "Name", cell: (u) => <span className="font-semibold">{u.name}</span> },
+            { header: "Role", cell: (u) => <Badge variant="ghost">{u.role.replaceAll("_", " ")}</Badge> },
             { header: "Phone", cell: (u) => u.phone },
             { header: "Email", cell: (u) => u.email ?? "—" },
             {

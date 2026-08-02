@@ -30,19 +30,25 @@ export default function TenantUtilityBillsPage() {
   const [lease, setLease] = useState<Lease | null | undefined>(undefined);
   const [bills, setBills] = useState<UtilityBill[]>([]);
   const [type, setType] = useState("ELECTRICITY");
-  const [billMonth, setBillMonth] = useState("");
+  const [monthRaw, setMonthRaw] = useState("");
   const [amount, setAmount] = useState("");
   const [documentUrl, setDocumentUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const leases = await apiFetch<Lease[]>("/leases/mine", { token: accessToken });
-    const active = leases.find((l) => l.status === "ACTIVE") ?? null;
-    setLease(active);
-    if (active) {
-      const b = await apiFetch<UtilityBill[]>(`/leases/${active.id}/utility-bills`, { token: accessToken });
-      setBills(b);
+    setLoadError(null);
+    try {
+      const leases = await apiFetch<Lease[]>("/leases/mine", { token: accessToken });
+      const active = leases.find((l) => l.status === "ACTIVE") ?? null;
+      setLease(active);
+      if (active) {
+        const b = await apiFetch<UtilityBill[]>(`/leases/${active.id}/utility-bills`, { token: accessToken });
+        setBills(b);
+      }
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Something went wrong");
     }
   }, [accessToken]);
 
@@ -60,9 +66,9 @@ export default function TenantUtilityBillsPage() {
       await apiFetch(`/leases/${lease.id}/utility-bills`, {
         method: "POST",
         token: accessToken,
-        body: { type, billMonth, amount: Number(amount), ...(documentUrl ? { documentUrl } : {}) },
+        body: { type, billMonth: `${monthRaw}-01`, amount: Number(amount), ...(documentUrl ? { documentUrl } : {}) },
       });
-      setBillMonth("");
+      setMonthRaw("");
       setAmount("");
       setDocumentUrl("");
       await reload();
@@ -77,8 +83,16 @@ export default function TenantUtilityBillsPage() {
     <div>
       <PageHeader title="Utility bills" subtitle="Upload each bill so your owner or plaza manager can track it." />
 
-      {lease === undefined && <p className="font-body text-sm text-ink-soft">Loading…</p>}
-      {lease === null && <p className="font-body text-sm text-ink-soft">No active lease yet.</p>}
+      {lease === undefined && !loadError && <p className="font-body text-sm text-ink-soft">Loading…</p>}
+      {loadError && (
+        <div className="mb-4 flex items-center gap-3">
+          <p className="font-body text-sm text-ember">{loadError}</p>
+          <button onClick={reload} className="font-body text-sm font-semibold text-teal">
+            Retry
+          </button>
+        </div>
+      )}
+      {lease === null && !loadError && <p className="font-body text-sm text-ink-soft">No active lease yet.</p>}
 
       {lease && (
         <>
@@ -93,14 +107,7 @@ export default function TenantUtilityBillsPage() {
                 ))}
               </select>
             </label>
-            <TextField
-              label="Month"
-              name="billMonth"
-              type="month"
-              value={billMonth}
-              onChange={(e) => setBillMonth(e.target.value ? `${e.target.value}-01` : "")}
-              required
-            />
+            <TextField label="Month" name="billMonth" type="month" value={monthRaw} onChange={(e) => setMonthRaw(e.target.value)} required />
             <TextField label="Amount (PKR)" name="amount" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} required />
             <TextField label="Document URL (optional)" name="documentUrl" value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} />
             <Button variant="primary" type="submit" disabled={busy}>

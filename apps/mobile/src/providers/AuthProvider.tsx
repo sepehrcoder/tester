@@ -2,9 +2,13 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import * as SecureStore from "expo-secure-store";
 import { apiFetch, ApiError } from "@/lib/api";
 
+// Six roles exist on the backend now (CUSTOMER/DEALER/ADMIN plus
+// COMPANY/TENANT/PLAZA_MANAGER added for property management) — this app
+// only has UI for the first three, but /auth/me can still return any of
+// them for an account created via the website, so the type has to allow it.
 export interface CurrentUser {
   id: string;
-  role: "CUSTOMER" | "DEALER" | "ADMIN";
+  role: "CUSTOMER" | "DEALER" | "ADMIN" | "COMPANY" | "TENANT" | "PLAZA_MANAGER";
   name: string;
   phone: string;
   email?: string | null;
