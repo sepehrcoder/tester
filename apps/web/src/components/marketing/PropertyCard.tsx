@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { IconMapPin } from "@repo/icons/web";
 import { Badge } from "@/components/ui/Badge";
@@ -9,12 +12,25 @@ export interface Property {
   location: string;
   verified?: boolean;
   tag: string;
+  photoUrl?: string;
 }
 
-export function PropertyCard({ id, price, title, location, verified, tag }: Property) {
+export function PropertyCard({ id, price, title, location, verified, tag, photoUrl }: Property) {
+  const [imageFailed, setImageFailed] = useState(false);
+
   const card = (
     <article className="surface-flat flex gap-4 p-4">
-      <div className="h-20 w-24 flex-shrink-0 rounded-sm bg-linear-to-br from-violet to-cyan" />
+      <div className="h-20 w-24 flex-shrink-0 overflow-hidden rounded-sm bg-linear-to-br from-violet to-cyan">
+        {photoUrl && !imageFailed && (
+          // eslint-disable-next-line @next/next/no-img-element -- external hotlinked stock photo
+          <img
+            src={photoUrl}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={() => setImageFailed(true)}
+          />
+        )}
+      </div>
       <div className="min-w-0 flex-1">
         <p className="tabular font-display text-lg font-extrabold text-ink">{price}</p>
         <h3 className="truncate font-body text-sm font-semibold text-ink">{title}</h3>

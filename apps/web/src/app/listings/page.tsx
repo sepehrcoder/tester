@@ -19,6 +19,7 @@ interface ApiListing {
   beds: number | null;
   verified: boolean;
   source: "DEALER" | "OWNER";
+  photos: { url: string }[];
 }
 
 function formatPKR(value: number) {
@@ -76,6 +77,7 @@ function ListingsSearchContent() {
             location: `${item.area}, ${item.city}`,
             verified: item.verified,
             tag: item.beds ? `${item.beds} bed` : item.source === "OWNER" ? "Owner listed" : "Listing",
+            photoUrl: item.photos[0]?.url,
           })),
         );
         setTotal(data.total);

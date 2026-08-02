@@ -68,7 +68,23 @@ export class ListingsService {
       where: { id },
       include: {
         photos: { orderBy: { order: 'asc' } },
-        owner: { select: { id: true, name: true, role: true } },
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            avatarUrl: true,
+            createdAt: true,
+            dealerProfile: {
+              select: {
+                agencyName: true,
+                ratingAvg: true,
+                ratingCount: true,
+                kycStatus: true,
+              },
+            },
+          },
+        },
       },
     });
     if (!listing) throw new NotFoundException('Listing not found');
