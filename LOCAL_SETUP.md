@@ -234,18 +234,29 @@ PostgreSQL: https://www.postgresql.org/download/ (or `brew install postgresql@16
 
 From the repository root:
 
+**macOS / Linux:**
 ```bash
 ./setup.sh              # fresh database via migrations + seed (recommended default)
 # or
 ./setup.sh --from-dump  # same schema, but restores database-dump.sql for its data instead
 ```
 
-This installs dependencies, creates the `marketplace` Postgres role/database
-if they don't already exist, copies each app's `.env.example` to its real
-`.env` (skipped if one's already there), and prepares the database. It's
-safe to re-run. If it can't figure out how to connect to Postgres as an
-admin on your system, it'll tell you exactly what to run manually — see the
-step-by-step version below for what it's doing under the hood.
+**Windows (PowerShell):**
+```powershell
+.\setup.ps1              # fresh database via migrations + seed (recommended default)
+# or
+.\setup.ps1 -FromDump    # same schema, but restores database-dump.sql for its data instead
+```
+If PowerShell blocks the script from running, run this once per session
+first: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+Either script installs dependencies, creates the `marketplace` Postgres role/
+database if they don't already exist, copies each app's `.env.example` to
+its real `.env` (skipped if one's already there), and prepares the
+database. Both are safe to re-run. If a script can't figure out how to
+connect to Postgres as an admin on your system, it'll tell you exactly what
+to run manually — see the step-by-step version below for what it's doing
+under the hood.
 
 Skip to **"Run it"** once it finishes. The rest of this section is the
 manual, step-by-step version of the same thing, for when you'd rather do it
