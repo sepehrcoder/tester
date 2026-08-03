@@ -96,6 +96,11 @@ export class AuthService {
     if (!user.phoneVerifiedAt)
       throw new UnauthorizedException('Phone number not verified yet');
 
+    if (user.suspendedAt)
+      throw new UnauthorizedException(
+        'This account has been suspended. Contact support if you think this is a mistake.',
+      );
+
     return this.issueTokenPair(user);
   }
 
@@ -109,6 +114,10 @@ export class AuthService {
   async verifyLoginOtp(phone: string, code: string) {
     await this.otp.verify(phone, 'LOGIN', code);
     const user = await this.prisma.user.findUniqueOrThrow({ where: { phone } });
+    if (user.suspendedAt)
+      throw new UnauthorizedException(
+        'This account has been suspended. Contact support if you think this is a mistake.',
+      );
     if (!user.phoneVerifiedAt) {
       await this.prisma.user.update({
         where: { id: user.id },
@@ -136,6 +145,8 @@ export class AuthService {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: stored.userId },
     });
+    if (user.suspendedAt)
+      throw new UnauthorizedException('This account has been suspended.');
     return this.issueTokenPair(user);
   }
 

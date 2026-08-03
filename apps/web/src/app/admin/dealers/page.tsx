@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Table } from "@/components/shared/Table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -52,10 +53,10 @@ export default function AdminDealersPage() {
             {
               header: "Dealer",
               cell: (d) => (
-                <div>
+                <Link href={`/admin/dealers/${d.id}`} className="block hover:underline">
                   <p className="font-semibold">{d.name}</p>
                   <p className="text-xs text-ink-soft">{d.dealerProfile?.agencyName ?? "—"}</p>
-                </div>
+                </Link>
               ),
             },
             { header: "Phone", cell: (d) => d.phone },

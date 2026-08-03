@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Table } from "@/components/shared/Table";
 import { useAuthedFetch } from "@/lib/useAuthedFetch";
@@ -28,7 +29,14 @@ export default function AdminPlazasPage() {
           keyFor={(p) => p.id}
           emptyMessage="No plazas yet."
           columns={[
-            { header: "Plaza", cell: (p) => <span className="font-semibold">{p.name}</span> },
+            {
+              header: "Plaza",
+              cell: (p) => (
+                <Link href={`/admin/plazas/${p.id}`} className="font-semibold hover:underline">
+                  {p.name}
+                </Link>
+              ),
+            },
             { header: "City", cell: (p) => p.city ?? "—" },
             { header: "Manager", cell: (p) => `${p.manager.name} (${p.manager.phone})` },
             { header: "Units", cell: (p) => p.unitCount, className: "tabular" },

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Table } from "@/components/shared/Table";
 import { useAuthedFetch } from "@/lib/useAuthedFetch";
@@ -27,7 +28,14 @@ export default function AdminCompaniesPage() {
           keyFor={(c) => c.id}
           emptyMessage="No companies yet."
           columns={[
-            { header: "Company", cell: (c) => <span className="font-semibold">{c.name}</span> },
+            {
+              header: "Company",
+              cell: (c) => (
+                <Link href={`/admin/companies/${c.id}`} className="font-semibold hover:underline">
+                  {c.name}
+                </Link>
+              ),
+            },
             { header: "Owner", cell: (c) => `${c.owner.name} (${c.owner.phone})` },
             { header: "Dealers joined", cell: (c) => c._count.dealers, className: "tabular" },
             { header: "Invite code", cell: (c) => <span className="font-mono text-xs">{c.inviteCode}</span> },

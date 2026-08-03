@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListingsService } from '../listings/listings.service';
 import { ModerateListingDto } from './dto/moderate-listing.dto';
@@ -99,6 +103,46 @@ export class AdminService {
     });
   }
 
+  async companyDetail(id: string) {
+    const company = await this.prisma.company.findUnique({
+      where: { id },
+      include: {
+        owner: { select: { id: true, name: true, phone: true } },
+        dealers: {
+          include: {
+            user: { select: { id: true, name: true, phone: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+    return company;
+  }
+
+  async updateCompany(id: string, name: string, admin: AuthenticatedUser) {
+    const updated = await this.prisma.company.update({
+      where: { id },
+      data: { name },
+    });
+    await this.audit(admin.id, 'COMPANY_UPDATED', 'Company', id);
+    return updated;
+  }
+
+  async deleteCompany(id: string, admin: AuthenticatedUser) {
+    const dealerCount = await this.prisma.dealerProfile.count({
+      where: { companyId: id },
+    });
+    if (dealerCount > 0) {
+      throw new BadRequestException(
+        `This company still has ${dealerCount} dealer(s) attached — move or remove them first`,
+      );
+    }
+    await this.prisma.company.delete({ where: { id } });
+    await this.audit(admin.id, 'COMPANY_DELETED', 'Company', id);
+    return { id };
+  }
+
   async listPlazas() {
     const plazas = await this.prisma.plaza.findMany({
       include: {
@@ -125,6 +169,27 @@ export class AdminService {
     }));
   }
 
+  async plazaDetail(id: string) {
+    const plaza = await this.prisma.plaza.findUnique({
+      where: { id },
+      include: {
+        manager: { select: { id: true, name: true, phone: true } },
+        units: {
+          include: {
+            owner: { select: { id: true, name: true } },
+            leases: {
+              where: { status: 'ACTIVE' },
+              include: { tenant: { select: { id: true, name: true } } },
+            },
+          },
+          orderBy: { floorNumber: 'asc' },
+        },
+      },
+    });
+    if (!plaza) throw new NotFoundException('Plaza not found');
+    return plaza;
+  }
+
   leasesOverview() {
     return this.prisma.lease.findMany({
       include: {
@@ -147,6 +212,26 @@ export class AdminService {
     });
   }
 
+  async leaseDetail(id: string) {
+    const lease = await this.prisma.lease.findUnique({
+      where: { id },
+      include: {
+        tenant: { select: { id: true, name: true, phone: true } },
+        unit: {
+          include: {
+            plaza: { select: { id: true, name: true } },
+            owner: { select: { id: true, name: true } },
+          },
+        },
+        rentPayments: { orderBy: { forMonth: 'desc' } },
+        utilityBills: { orderBy: { billMonth: 'desc' } },
+        maintenance: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+    if (!lease) throw new NotFoundException('Lease not found');
+    return lease;
+  }
+
   listDealers() {
     return this.prisma.user.findMany({
       where: { role: 'DEALER' },
@@ -155,6 +240,82 @@ export class AdminService {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+  }
+
+  async dealerDetail(id: string) {
+    const dealer = await this.prisma.user.findUnique({
+      where: { id },
+      omit: { passwordHash: true },
+      include: {
+        dealerProfile: { include: { company: { select: { id: true, name: true } } } },
+        listings: {
+          include: { photos: { take: 1 } },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        leadsAsDealer: {
+          include: { requirement: true },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        reviewsReceived: {
+          include: { customer: { select: { id: true, name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+      },
+    });
+    if (!dealer || dealer.role !== 'DEALER')
+      throw new NotFoundException('Dealer not found');
+    return dealer;
+  }
+
+  async userDetail(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      omit: { passwordHash: true },
+      include: {
+        companyOwned: { select: { id: true, name: true } },
+        listings: { orderBy: { createdAt: 'desc' }, take: 50 },
+        requirements: {
+          include: { leads: { select: { id: true, status: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        leasesAsTenant: {
+          include: { unit: { select: { id: true, title: true, city: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async setUserSuspended(
+    id: string,
+    suspended: boolean,
+    admin: AuthenticatedUser,
+  ) {
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { suspendedAt: suspended ? new Date() : null },
+      omit: { passwordHash: true },
+    });
+    await this.audit(
+      admin.id,
+      suspended ? 'USER_SUSPENDED' : 'USER_REINSTATED',
+      'User',
+      id,
+    );
+    return updated;
+  }
+
+  async deleteUser(id: string, admin: AuthenticatedUser) {
+    await this.prisma.user.delete({ where: { id } });
+    await this.audit(admin.id, 'USER_DELETED', 'User', id);
+    return { id };
   }
 
   async moderateKyc(
@@ -221,8 +382,9 @@ export class AdminService {
     });
   }
 
-  listReports() {
+  listReports(listingId?: string) {
     return this.prisma.report.findMany({
+      where: listingId ? { listingId } : undefined,
       include: {
         reporter: { select: { id: true, name: true } },
         listing: { select: { id: true, title: true } },
@@ -232,14 +394,32 @@ export class AdminService {
     });
   }
 
+  async reportDetail(id: string) {
+    const report = await this.prisma.report.findUnique({
+      where: { id },
+      include: {
+        reporter: { select: { id: true, name: true, phone: true } },
+        listing: {
+          include: {
+            photos: { take: 1 },
+            owner: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+    if (!report) throw new NotFoundException('Report not found');
+    return report;
+  }
+
   async resolveReport(
     id: string,
     status: 'RESOLVED' | 'DISMISSED',
     admin: AuthenticatedUser,
+    resolutionNotes?: string,
   ) {
     const updated = await this.prisma.report.update({
       where: { id },
-      data: { status },
+      data: { status, resolutionNotes },
     });
     await this.audit(admin.id, `REPORT_${status}`, 'Report', id);
     return updated;
@@ -247,8 +427,9 @@ export class AdminService {
 
   // -- audit log -----------------------------------------------------------
 
-  auditLog() {
+  auditLog(targetId?: string) {
     return this.prisma.auditLog.findMany({
+      where: targetId ? { targetId } : undefined,
       include: { actor: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 200,
