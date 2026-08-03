@@ -292,7 +292,17 @@ model Listing {
   description  String
   price        Decimal        @db.Decimal(14, 2)
   city         String
+  // Legacy/display fallback — kept for listings without a matched
+  // Society/Phase/Block (see §03/1, §12 of the platform blueprint). When
+  // the hierarchy fields below are set, `area` is derived from them at
+  // write time so old readers of this field keep working unchanged.
   area         String
+  societyId    String?
+  society      Society?       @relation(fields: [societyId], references: [id])
+  phaseId      String?
+  phase        Phase?         @relation(fields: [phaseId], references: [id])
+  blockId      String?
+  block        Block?         @relation(fields: [blockId], references: [id])
   beds         Int?
   baths        Int?
   sizeValue    Float?
@@ -311,6 +321,52 @@ model Listing {
   promotions    ListingPromotion[]
 
   @@index([status, purpose, propertyType, city])
+  @@index([phaseId])
+}
+
+// Structured location hierarchy — City -> Society -> Phase -> Block (§03/1
+// of the platform blueprint). Pakistani real estate is organized around
+// named, phase-gated developments (DHA, Bahria Town, ...) far more rigidly
+// than "neighborhood" works in most Western markets, so search/matching
+// keys off Phase, not free-text area.
+model Society {
+  id        String   @id @default(cuid())
+  city      String
+  name      String
+  createdAt DateTime @default(now())
+
+  phases   Phase[]
+  listings Listing[]
+
+  @@unique([city, name])
+  @@index([city])
+}
+
+model Phase {
+  id        String   @id @default(cuid())
+  societyId String
+  society   Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  blocks   Block[]
+  listings Listing[]
+
+  @@unique([societyId, name])
+  @@index([societyId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  phaseId   String
+  phase     Phase    @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  listings Listing[]
+
+  @@unique([phaseId, name])
+  @@index([phaseId])
 }
 
 // A paid promotion window — the record behind Listing.promoTier. A scheduled

@@ -31,6 +31,7 @@ interface ListingDetail {
   promoTier: string;
   status: string;
   createdAt: string;
+  phaseId: string | null;
   photos: { id: string; url: string }[];
   owner: {
     id: string;
@@ -127,8 +128,9 @@ export default function ListingDetailPage() {
     if (!listing) return;
     let cancelled = false;
     const params2 = new URLSearchParams({
-      propertyType: listing.propertyType,
-      purpose: listing.purpose,
+      // Prefer matching within the same Phase (§03/1) when the listing has
+      // one — falls back to the coarser propertyType+purpose match otherwise.
+      ...(listing.phaseId ? { phaseId: listing.phaseId } : { propertyType: listing.propertyType, purpose: listing.purpose }),
       pageSize: "5",
     });
     apiFetch<{ items: ApiListing[] }>(`/listings?${params2.toString()}`)

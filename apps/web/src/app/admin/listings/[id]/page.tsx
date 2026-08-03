@@ -17,6 +17,9 @@ interface ListingDetail {
   price: string;
   city: string;
   area: string;
+  society: { name: string } | null;
+  phase: { name: string } | null;
+  block: { name: string } | null;
   status: string;
   verified: boolean;
   promoTier: string;
@@ -46,6 +49,21 @@ interface ReportEntry {
   reporter: { name: string };
 }
 
+interface EditForm {
+  title?: string;
+  description?: string;
+  price?: string;
+  city?: string;
+  area?: string;
+  societyName?: string;
+  phaseName?: string;
+  blockName?: string;
+  beds?: number | null;
+  baths?: number | null;
+  sizeValue?: number | null;
+  sizeUnit?: string | null;
+}
+
 export default function AdminListingDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -53,7 +71,7 @@ export default function AdminListingDetailPage() {
   const { data, loading, error, refetch } = useAuthedFetch<ListingDetail>(`/listings/${params.id}`);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<Partial<ListingDetail>>({});
+  const [form, setForm] = useState<EditForm>({});
   const [history, setHistory] = useState<AuditEntry[]>([]);
   const [reports, setReports] = useState<ReportEntry[]>([]);
 
@@ -111,6 +129,9 @@ export default function AdminListingDetailPage() {
       price: data.price,
       city: data.city,
       area: data.area,
+      societyName: data.society?.name ?? "",
+      phaseName: data.phase?.name ?? "",
+      blockName: data.block?.name ?? "",
       beds: data.beds,
       baths: data.baths,
       sizeValue: data.sizeValue,
@@ -276,11 +297,37 @@ export default function AdminListingDetailPage() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="font-body text-xs text-ink-faint">Area</span>
+              <span className="font-body text-xs text-ink-faint">Area (legacy display fallback)</span>
               <input
                 value={form.area ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, area: e.target.value }))}
                 className="rounded-sm border border-flat-border bg-flat px-3 py-2 font-body text-sm text-ink outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-body text-xs text-ink-faint">Society (e.g. Bahria Town)</span>
+              <input
+                value={form.societyName ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, societyName: e.target.value }))}
+                className="rounded-sm border border-flat-border bg-flat px-3 py-2 font-body text-sm text-ink outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-body text-xs text-ink-faint">Phase (e.g. Phase 6)</span>
+              <input
+                value={form.phaseName ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, phaseName: e.target.value }))}
+                disabled={!form.societyName}
+                className="rounded-sm border border-flat-border bg-flat px-3 py-2 font-body text-sm text-ink outline-none disabled:opacity-50"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-body text-xs text-ink-faint">Block (e.g. Block C)</span>
+              <input
+                value={form.blockName ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, blockName: e.target.value }))}
+                disabled={!form.phaseName}
+                className="rounded-sm border border-flat-border bg-flat px-3 py-2 font-body text-sm text-ink outline-none disabled:opacity-50"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -340,6 +387,10 @@ export default function AdminListingDetailPage() {
               { label: "Type", value: `${data.propertyType} · ${data.purpose === "SALE" ? "For sale" : "For rent"}` },
               { label: "Beds / Baths", value: `${data.beds ?? "—"} / ${data.baths ?? "—"}` },
               { label: "Size", value: data.sizeValue ? `${data.sizeValue} ${data.sizeUnit}` : "—" },
+              {
+                label: "Location",
+                value: [data.society?.name, data.phase?.name, data.block?.name].filter(Boolean).join(" › ") || "Unstructured",
+              },
               { label: "Photos", value: data.photos.length },
               { label: "Posted", value: new Date(data.createdAt).toLocaleDateString() },
             ]}

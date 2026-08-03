@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateListingDto } from './dto/create-listing.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { SearchListingsDto } from './dto/search-listings.dto';
+import { LocationsService } from '../locations/locations.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import type { ListingStatus } from '../../generated/prisma/enums';
 
@@ -20,13 +21,21 @@ const PROMO_DAILY_RATE: Record<'FEATURED' | 'PREMIUM', number> = {
 
 @Injectable()
 export class ListingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly locations: LocationsService,
+  ) {}
 
   async create(user: AuthenticatedUser, dto: CreateListingDto) {
-    const { photoUrls, ...rest } = dto;
+    const { photoUrls, societyName, phaseName, blockName, ...rest } = dto;
+    const hierarchy = await this.locations.resolveHierarchy(dto.city, societyName, phaseName, blockName);
     return this.prisma.listing.create({
       data: {
         ...rest,
+        ...(hierarchy.area ? { area: hierarchy.area } : {}),
+        societyId: hierarchy.societyId,
+        phaseId: hierarchy.phaseId,
+        blockId: hierarchy.blockId,
         ownerId: user.id,
         source: user.role === 'DEALER' ? 'DEALER' : 'OWNER',
         photos: photoUrls?.length
@@ -74,6 +83,7 @@ export class ListingsService {
       ...(query.city
         ? { city: { equals: query.city, mode: 'insensitive' as const } }
         : {}),
+      ...(query.phaseId ? { phaseId: query.phaseId } : {}),
       ...(query.purpose ? { purpose: query.purpose } : {}),
       ...(query.propertyType ? { propertyType: query.propertyType } : {}),
       ...(query.beds ? { beds: { gte: query.beds } } : {}),
@@ -112,6 +122,9 @@ export class ListingsService {
       where: { id },
       include: {
         photos: { orderBy: { order: 'asc' } },
+        society: { select: { name: true } },
+        phase: { select: { name: true } },
+        block: { select: { name: true } },
         owner: {
           select: {
             id: true,
@@ -152,8 +165,21 @@ export class ListingsService {
   }
 
   async update(user: AuthenticatedUser, id: string, dto: UpdateListingDto) {
-    await this.assertOwnerOrAdmin(user, id);
-    return this.prisma.listing.update({ where: { id }, data: dto });
+    const listing = await this.assertOwnerOrAdmin(user, id);
+    const { societyName, phaseName, blockName, ...rest } = dto;
+    const hierarchy = societyName
+      ? await this.locations.resolveHierarchy(dto.city ?? listing.city, societyName, phaseName, blockName)
+      : {};
+    return this.prisma.listing.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(hierarchy.area ? { area: hierarchy.area } : {}),
+        ...(hierarchy.societyId ? { societyId: hierarchy.societyId } : {}),
+        ...(hierarchy.phaseId ? { phaseId: hierarchy.phaseId } : {}),
+        ...(hierarchy.blockId ? { blockId: hierarchy.blockId } : {}),
+      },
+    });
   }
 
   async remove(user: AuthenticatedUser, id: string) {

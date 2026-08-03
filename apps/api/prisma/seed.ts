@@ -74,6 +74,11 @@ interface SeedListing {
   price: number;
   city: string;
   area: string;
+  // Structured location (§03/1) — optional, since not every seed listing
+  // maps cleanly onto a named, phase-gated development. Where omitted,
+  // `area` stays the only location data, same as a real unstructured entry.
+  societyName?: string;
+  phaseName?: string;
   beds?: number;
   baths?: number;
   sizeValue?: number;
@@ -82,10 +87,27 @@ interface SeedListing {
   photos: string[];
 }
 
+async function resolveSeedHierarchy(city: string, societyName?: string, phaseName?: string) {
+  if (!societyName) return {};
+  const society = await prisma.society.upsert({
+    where: { city_name: { city, name: societyName } },
+    update: {},
+    create: { city, name: societyName },
+  });
+  if (!phaseName) return { societyId: society.id };
+  const phase = await prisma.phase.upsert({
+    where: { societyId_name: { societyId: society.id, name: phaseName } },
+    update: {},
+    create: { societyId: society.id, name: phaseName },
+  });
+  return { societyId: society.id, phaseId: phase.id };
+}
+
 async function upsertListing(dto: SeedListing) {
+  const { societyId, phaseId } = await resolveSeedHierarchy(dto.city, dto.societyName, dto.phaseName);
   return prisma.listing.upsert({
     where: { id: dto.id },
-    update: {},
+    update: { societyId, phaseId },
     create: {
       id: dto.id,
       ownerId: dto.ownerId,
@@ -99,6 +121,8 @@ async function upsertListing(dto: SeedListing) {
       price: dto.price,
       city: dto.city,
       area: dto.area,
+      societyId,
+      phaseId,
       beds: dto.beds,
       baths: dto.baths,
       sizeValue: dto.sizeValue,
@@ -189,6 +213,8 @@ async function main() {
       price: 18500000,
       city: 'Lahore',
       area: 'Bahria Town, Phase 7',
+      societyName: 'Bahria Town',
+      phaseName: 'Phase 7',
       beds: 3,
       baths: 2,
       sizeValue: 5,
@@ -208,6 +234,8 @@ async function main() {
       price: 32000000,
       city: 'Lahore',
       area: 'DHA Phase 6',
+      societyName: 'DHA',
+      phaseName: 'Phase 6',
       beds: 6,
       baths: 5,
       sizeValue: 1,
@@ -227,6 +255,7 @@ async function main() {
       price: 85000,
       city: 'Lahore',
       area: 'Gulberg Greens',
+      societyName: 'Gulberg Greens',
       beds: 2,
       baths: 2,
       sizeValue: 1100,
@@ -282,6 +311,8 @@ async function main() {
       price: 9200000,
       city: 'Islamabad',
       area: 'DHA Phase 2',
+      societyName: 'DHA',
+      phaseName: 'Phase 2',
       sizeValue: 10,
       sizeUnit: 'marla',
       verified: false,

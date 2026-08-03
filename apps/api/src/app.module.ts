@@ -16,6 +16,7 @@ import { AdminModule } from './admin/admin.module';
 import { CompanyModule } from './company/company.module';
 import { PropertiesModule } from './properties/properties.module';
 import { AiModule } from './ai/ai.module';
+import { LocationsModule } from './locations/locations.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AiModule } from './ai/ai.module';
     CompanyModule,
     PropertiesModule,
     AiModule,
+    LocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

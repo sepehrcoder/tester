@@ -44,6 +44,24 @@ export class CreateListingDto {
   @IsString()
   area: string;
 
+  @ApiProperty({
+    required: false,
+    description: 'Society/development name, e.g. "Bahria Town" — structured location (§03/1)',
+  })
+  @IsOptional()
+  @IsString()
+  societyName?: string;
+
+  @ApiProperty({ required: false, description: 'Phase/sector within the society, e.g. "Phase 7"' })
+  @IsOptional()
+  @IsString()
+  phaseName?: string;
+
+  @ApiProperty({ required: false, description: 'Block within the phase, e.g. "Block C"' })
+  @IsOptional()
+  @IsString()
+  blockName?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsInt()
