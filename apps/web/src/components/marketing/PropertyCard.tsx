@@ -21,9 +21,14 @@ export interface Property {
 export function PropertyCard({ id, price, title, location, verified, promoTier, tag, photoUrl }: Property) {
   const [imageFailed, setImageFailed] = useState(false);
 
-  const card = (
-    <article className="surface-flat flex gap-4 p-4">
-      <div className="relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-sm bg-linear-to-br from-violet to-cyan">
+  // "Stretched link" pattern: the card-wide Link is a sibling of the
+  // FavoriteButton, not an ancestor — nesting <button> inside <a> is
+  // invalid HTML and breaks hydration.
+  return (
+    <article className="surface-flat relative flex gap-4 p-4 transition-transform hover:scale-[1.01]">
+      {id && <Link href={`/listings/${id}`} className="absolute inset-0 z-0" aria-label={title} />}
+
+      <div className="relative z-10 h-20 w-24 flex-shrink-0 overflow-hidden rounded-sm bg-linear-to-br from-violet to-cyan">
         {photoUrl && !imageFailed && (
           // eslint-disable-next-line @next/next/no-img-element -- external hotlinked stock photo
           <img
@@ -33,9 +38,9 @@ export function PropertyCard({ id, price, title, location, verified, promoTier, 
             onError={() => setImageFailed(true)}
           />
         )}
-        {id && <FavoriteButton listingId={id} className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-pill bg-canvas/80 text-ink-soft" />}
+        {id && <FavoriteButton listingId={id} className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-pill bg-canvas/80 text-ink-soft" />}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="pointer-events-none relative z-10 min-w-0 flex-1">
         <p className="tabular font-display text-lg font-extrabold text-ink">{price}</p>
         <h3 className="truncate font-body text-sm font-semibold text-ink">{title}</h3>
         <p className="flex items-center gap-1 truncate text-xs text-ink-soft">
@@ -49,13 +54,5 @@ export function PropertyCard({ id, price, title, location, verified, promoTier, 
         </div>
       </div>
     </article>
-  );
-
-  return id ? (
-    <Link href={`/listings/${id}`} className="block transition-transform hover:scale-[1.01]">
-      {card}
-    </Link>
-  ) : (
-    card
   );
 }
