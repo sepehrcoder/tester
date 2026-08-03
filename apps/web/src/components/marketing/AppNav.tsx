@@ -10,9 +10,20 @@ export function AppNav() {
 
   return (
     <header className="surface-glass-strong sticky top-4 z-10 mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3">
-      <Link href="/" className="font-display text-lg font-extrabold tracking-tight text-ink">
-        Manzil
-      </Link>
+      <div className="flex items-center gap-6">
+        <Link href="/" className="font-display text-lg font-extrabold tracking-tight text-ink">
+          Manzil
+        </Link>
+        <Link href="/tools" className="hidden font-body text-sm font-semibold text-ink-soft hover:text-ink sm:inline">
+          Tools
+        </Link>
+        <Link href="/dealers" className="hidden font-body text-sm font-semibold text-ink-soft hover:text-ink sm:inline">
+          Dealers
+        </Link>
+        <Link href="/news" className="hidden font-body text-sm font-semibold text-ink-soft hover:text-ink sm:inline">
+          News
+        </Link>
+      </div>
 
       <div className="flex items-center gap-3">
         {loading ? null : user ? (

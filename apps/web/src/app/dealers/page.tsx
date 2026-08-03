@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AppNav } from "@/components/marketing/AppNav";
 import { Badge } from "@/components/ui/Badge";
 import { IconStar } from "@repo/icons/web";
@@ -82,29 +83,31 @@ export default function DealersDirectoryPage() {
 
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {dealers.map((d) => (
-              <article key={d.userId} className="surface-flat p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-pill bg-ember text-sm font-bold text-ember-ink">
-                    {initials(d.user.name)}
+              <Link key={d.userId} href={`/dealers/${d.userId}`} className="block transition-transform hover:scale-[1.01]">
+                <article className="surface-flat p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-pill bg-ember text-sm font-bold text-ember-ink">
+                      {initials(d.user.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="truncate font-body text-sm font-bold text-ink">{d.user.name}</h3>
+                      {d.agencyName && <p className="truncate font-body text-xs text-ink-soft">{d.agencyName}</p>}
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="truncate font-body text-sm font-bold text-ink">{d.user.name}</h3>
-                    {d.agencyName && <p className="truncate font-body text-xs text-ink-soft">{d.agencyName}</p>}
+                  <p className="mt-3 font-body text-xs text-ink-faint">{d.coverageCities.join(", ") || "No coverage set"}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {d.propertyTypes.map((pt) => (
+                      <Badge key={pt} variant="ghost">
+                        {pt}
+                      </Badge>
+                    ))}
                   </div>
-                </div>
-                <p className="mt-3 font-body text-xs text-ink-faint">{d.coverageCities.join(", ") || "No coverage set"}</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {d.propertyTypes.map((pt) => (
-                    <Badge key={pt} variant="ghost">
-                      {pt}
-                    </Badge>
-                  ))}
-                </div>
-                <p className="mt-3 flex items-center gap-1 font-body text-sm font-semibold text-teal">
-                  <IconStar size={14} />
-                  {d.ratingAvg.toFixed(1)} ({d.ratingCount})
-                </p>
-              </article>
+                  <p className="mt-3 flex items-center gap-1 font-body text-sm font-semibold text-teal">
+                    <IconStar size={14} />
+                    {d.ratingAvg.toFixed(1)} ({d.ratingCount})
+                  </p>
+                </article>
+              </Link>
             ))}
           </section>
         </main>

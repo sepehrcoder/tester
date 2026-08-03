@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Table } from "@/components/shared/Table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -65,12 +66,12 @@ export default function AdminListingsPage() {
             {
               header: "Listing",
               cell: (l) => (
-                <div>
+                <Link href={`/admin/listings/${l.id}`} className="block hover:underline">
                   <p className="font-semibold">{l.title}</p>
                   <p className="text-xs text-ink-soft">
                     {l.area}, {l.city}
                   </p>
-                </div>
+                </Link>
               ),
             },
             { header: "Owner", cell: (l) => `${l.owner.name} (${l.owner.role})` },

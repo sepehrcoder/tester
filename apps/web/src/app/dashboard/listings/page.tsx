@@ -14,6 +14,7 @@ interface Listing {
   price: string;
   status: string;
   verified: boolean;
+  viewCount: number;
   createdAt: string;
 }
 
@@ -47,6 +48,7 @@ export default function MyListingsPage() {
             { header: "Price", cell: (l) => `PKR ${Number(l.price).toLocaleString()}`, className: "tabular" },
             { header: "Status", cell: (l) => <StatusBadge status={l.status} /> },
             { header: "Verified", cell: (l) => (l.verified ? <Badge variant="teal">Yes</Badge> : <Badge variant="ghost">No</Badge>) },
+            { header: "Views", cell: (l) => l.viewCount.toLocaleString(), className: "tabular" },
             { header: "Posted", cell: (l) => new Date(l.createdAt).toLocaleDateString() },
           ]}
         />

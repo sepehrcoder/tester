@@ -4,8 +4,10 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppNav } from "@/components/marketing/AppNav";
 import { PropertyCard, type Property } from "@/components/marketing/PropertyCard";
+import { PropertyRow } from "@/components/marketing/PropertyRow";
 import { Badge } from "@/components/ui/Badge";
 import { apiFetch, ApiError } from "@/lib/api";
+import { formatPKR } from "@/lib/price";
 
 const PROPERTY_TYPES = ["HOUSE", "APARTMENT", "PLOT", "COMMERCIAL"];
 const PURPOSES = ["SALE", "RENT"];
@@ -18,16 +20,15 @@ interface ApiListing {
   area: string;
   beds: number | null;
   verified: boolean;
+  promoTier: string;
   source: "DEALER" | "OWNER";
   photos: { url: string }[];
+  owner?: { phone: string };
 }
 
-function formatPKR(value: number) {
-  const rounded = Math.round(value).toString();
-  const last3 = rounded.slice(-3);
-  const rest = rounded.slice(0, -3);
-  const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," : "";
-  return `PKR ${grouped}${last3}`;
+interface AreaCount {
+  area: string;
+  count: number;
 }
 
 export default function ListingsSearchPage() {
@@ -47,11 +48,13 @@ function ListingsSearchContent() {
   const [purpose, setPurpose] = useState(searchParams.get("purpose") ?? "");
   const [verifiedOnly, setVerifiedOnly] = useState(searchParams.get("verifiedOnly") === "true");
   const [page, setPage] = useState(1);
+  const [view, setView] = useState<"list" | "grid">("list");
 
   const [listings, setListings] = useState<Property[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [areaCounts, setAreaCounts] = useState<AreaCount[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,12 +75,14 @@ function ListingsSearchContent() {
         setListings(
           data.items.map((item) => ({
             id: item.id,
-            price: formatPKR(Number(item.price)),
+            price: formatPKR(item.price),
             title: item.title,
             location: `${item.area}, ${item.city}`,
             verified: item.verified,
+            promoTier: item.promoTier,
             tag: item.beds ? `${item.beds} bed` : item.source === "OWNER" ? "Owner listed" : "Listing",
             photoUrl: item.photos[0]?.url,
+            phone: item.owner?.phone,
           })),
         );
         setTotal(data.total);
@@ -92,6 +97,21 @@ function ListingsSearchContent() {
       cancelled = true;
     };
   }, [city, propertyType, purpose, verifiedOnly, page]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!city.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing derived state when the city filter is cleared, not syncing external data
+      setAreaCounts([]);
+      return;
+    }
+    apiFetch<AreaCount[]>(`/listings/areas?city=${encodeURIComponent(city.trim())}`)
+      .then((data) => !cancelled && setAreaCounts(data))
+      .catch(() => !cancelled && setAreaCounts([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [city]);
 
   function applyFilters(next: { city?: string; propertyType?: string; purpose?: string; verifiedOnly?: boolean }) {
     setPage(1);
@@ -123,7 +143,25 @@ function ListingsSearchContent() {
         </div>
 
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-          <h1 className="mb-6 font-display text-2xl font-extrabold text-ink">Browse listings</h1>
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="font-display text-2xl font-extrabold text-ink">Browse listings</h1>
+            <div className="surface-glass inline-flex gap-1 rounded-sm p-1">
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                className={`rounded-sm px-3 py-1 font-body text-xs font-bold ${view === "list" ? "bg-ember text-ember-ink" : "text-ink-soft"}`}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("grid")}
+                className={`rounded-sm px-3 py-1 font-body text-xs font-bold ${view === "grid" ? "bg-ember text-ember-ink" : "text-ink-soft"}`}
+              >
+                Grid
+              </button>
+            </div>
+          </div>
 
           <div className="surface-glass mb-6 flex flex-wrap items-center gap-3 p-4">
             <input
@@ -149,17 +187,40 @@ function ListingsSearchContent() {
             ))}
           </div>
 
+          {areaCounts.length > 0 && (
+            <div className="mb-6">
+              <h2 className="mb-2 font-body text-xs font-bold uppercase tracking-wide text-ink-faint">
+                Locations in {city}
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {areaCounts.map((a) => (
+                  <span key={a.area} className="rounded-sm bg-flat px-2.5 py-1 font-body text-xs text-ink-soft">
+                    {a.area} <span className="text-ink-faint">({a.count})</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {loading && <p className="font-body text-sm text-ink-soft">Loading…</p>}
           {error && <p className="font-body text-sm text-ember">{error}</p>}
           {!loading && !error && listings.length === 0 && (
             <p className="font-body text-sm text-ink-faint">No listings match those filters.</p>
           )}
 
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {listings.map((l) => (
-              <PropertyCard key={l.id} {...l} />
-            ))}
-          </section>
+          {view === "list" ? (
+            <section className="flex flex-col gap-4">
+              {listings.map((l) => (
+                <PropertyRow key={l.id} {...l} />
+              ))}
+            </section>
+          ) : (
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {listings.map((l) => (
+                <PropertyCard key={l.id} {...l} />
+              ))}
+            </section>
+          )}
 
           {totalPages > 1 && (
             <div className="mt-8 flex items-center justify-center gap-3">

@@ -181,6 +181,85 @@ export class LeadsService {
     return { ...lead, conversationId: conversation.id };
   }
 
+  // -- admin overrides -------------------------------------------------------
+
+  /** Admin force-reassigns a lead to a different dealer, e.g. after a complaint. */
+  async reassign(leadId: string, newDealerId: string) {
+    const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
+    if (!lead) throw new NotFoundException('Lead not found');
+
+    const dealer = await this.prisma.user.findUnique({
+      where: { id: newDealerId },
+    });
+    if (!dealer || dealer.role !== 'DEALER')
+      throw new NotFoundException('Dealer not found');
+
+    const slaDeadline = new Date(Date.now() + this.slaHours * 60 * 60 * 1000);
+    const acceptedAt = new Date();
+
+    await this.prisma.$transaction([
+      ...(lead.dealerId
+        ? [
+            this.prisma.leadAssignment.updateMany({
+              where: { leadId, dealerId: lead.dealerId, releasedAt: null },
+              data: { releasedAt: acceptedAt, outcome: 'REASSIGNED_BY_ADMIN' },
+            }),
+          ]
+        : []),
+      this.prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          status: 'ACCEPTED',
+          dealerId: newDealerId,
+          acceptedAt,
+          slaDeadline,
+        },
+      }),
+      this.prisma.leadAssignment.create({
+        data: { leadId, dealerId: newDealerId, acceptedAt },
+      }),
+    ]);
+
+    await this.notifications.create(
+      newDealerId,
+      'LEAD_REASSIGNED',
+      'A lead was reassigned to you by an admin',
+      'Open it to see the full requirement and pick up where the previous dealer left off.',
+      { leadId },
+    );
+
+    return this.prisma.lead.findUniqueOrThrow({
+      where: { id: leadId },
+      include: { requirement: true, dealer: { select: { id: true, name: true } } },
+    });
+  }
+
+  /** Admin force-release: unassign the current dealer and reopen to the whole matched pool. */
+  async forceRelease(leadId: string) {
+    const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
+    if (!lead) throw new NotFoundException('Lead not found');
+    if (!lead.dealerId) return lead;
+
+    await this.prisma.$transaction([
+      this.prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          status: 'BROADCAST',
+          dealerId: null,
+          acceptedAt: null,
+          slaDeadline: null,
+          inviteToken: null,
+        },
+      }),
+      this.prisma.leadAssignment.updateMany({
+        where: { leadId, dealerId: lead.dealerId, releasedAt: null },
+        data: { releasedAt: new Date(), outcome: 'REASSIGNED_BY_ADMIN' },
+      }),
+    ]);
+
+    return this.prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
+  }
+
   private async findOrCreateConversation(
     leadId: string,
     customerId: string,

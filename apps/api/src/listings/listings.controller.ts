@@ -45,6 +45,16 @@ export class ListingsController {
     return this.listings.search(query);
   }
 
+  @Get('stats')
+  stats() {
+    return this.listings.stats();
+  }
+
+  @Get('areas')
+  areaCounts(@Query('city') city: string) {
+    return this.listings.areaCounts(city ?? '');
+  }
+
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get('mine')

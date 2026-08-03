@@ -57,6 +57,14 @@ enum ListingStatus {
   ARCHIVED
 }
 
+// Promotion tier — orthogonal to Listing.verified (trust). See §03/3 of the
+// platform blueprint: Popular/Featured-equivalent, then a top paid tier.
+enum ListingPromoTier {
+  STANDARD
+  FEATURED
+  PREMIUM
+}
+
 enum RequirementStatus {
   OPEN
   CLOSED
@@ -102,6 +110,20 @@ enum ReportStatus {
   OPEN
   RESOLVED
   DISMISSED
+}
+
+// -- content publishing (§14, Phase 5) -----------------------------------
+
+enum ArticleCategory {
+  NEWS
+  GUIDE
+  AREA_INSIGHT
+}
+
+enum ArticleStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
 }
 
 // -- property management -----------------------------------------------
@@ -176,6 +198,9 @@ model User {
   // dealer offline?" check the AI auto-reply feature relies on. Not a
   // real-time presence system, just a coarse last-seen heuristic.
   lastActiveAt    DateTime  @default(now())
+  // Admin moderation action — a suspended user is blocked at login (see
+  // AuthService) but their data is kept, unlike a delete.
+  suspendedAt     DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -189,6 +214,8 @@ model User {
   maintenanceRaised    MaintenanceRequest[] @relation("MaintenanceRaisedBy")
 
   listings          Listing[]
+  listingPromotions ListingPromotion[]
+  favorites         Favorite[]
   requirements      Requirement[]
   leadsAsDealer     Lead[]                    @relation("LeadDealer")
   leadAssignments   LeadAssignment[]
@@ -201,6 +228,7 @@ model User {
   reports           Report[]
   refreshTokens     RefreshToken[]
   auditLogEntries   AuditLog[]
+  articles          Article[]
 
   @@index([role])
 }
@@ -280,20 +308,119 @@ model Listing {
   description  String
   price        Decimal        @db.Decimal(14, 2)
   city         String
+  // Legacy/display fallback — kept for listings without a matched
+  // Society/Phase/Block (see §03/1, §12 of the platform blueprint). When
+  // the hierarchy fields below are set, `area` is derived from them at
+  // write time so old readers of this field keep working unchanged.
   area         String
+  societyId    String?
+  society      Society?       @relation(fields: [societyId], references: [id])
+  phaseId      String?
+  phase        Phase?         @relation(fields: [phaseId], references: [id])
+  blockId      String?
+  block        Block?         @relation(fields: [blockId], references: [id])
   beds         Int?
   baths        Int?
   sizeValue    Float?
   sizeUnit     String? // "marla" | "kanal" | "sqft"
+  // Trust flag — independent of promoTier below. A listing can be verified
+  // AND standard tier, or unverified AND promoted; the two axes don't imply
+  // each other (see the platform blueprint, §03/3).
   verified     Boolean        @default(false)
+  promoTier    ListingPromoTier @default(STANDARD)
+  // Per-listing activity stat (§11/§12 of the platform blueprint) — bumped
+  // on each public single-listing fetch; deliberately not deduped per
+  // viewer, so this is a coarse popularity signal, not unique-visitor
+  // analytics.
+  viewCount    Int            @default(0)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
   photos        ListingPhoto[]
   conversations Conversation[]
   reports       Report[]
+  promotions    ListingPromotion[]
+  favoritedBy   Favorite[]
 
   @@index([status, purpose, propertyType, city])
+  @@index([phaseId])
+}
+
+// "My saved listings" (§04/§12 of the platform blueprint, Phase 4).
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
+}
+
+// Structured location hierarchy — City -> Society -> Phase -> Block (§03/1
+// of the platform blueprint). Pakistani real estate is organized around
+// named, phase-gated developments (DHA, Bahria Town, ...) far more rigidly
+// than "neighborhood" works in most Western markets, so search/matching
+// keys off Phase, not free-text area.
+model Society {
+  id        String   @id @default(cuid())
+  city      String
+  name      String
+  createdAt DateTime @default(now())
+
+  phases   Phase[]
+  listings Listing[]
+
+  @@unique([city, name])
+  @@index([city])
+}
+
+model Phase {
+  id        String   @id @default(cuid())
+  societyId String
+  society   Society  @relation(fields: [societyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  blocks   Block[]
+  listings Listing[]
+
+  @@unique([societyId, name])
+  @@index([societyId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  phaseId   String
+  phase     Phase    @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  listings Listing[]
+
+  @@unique([phaseId, name])
+  @@index([phaseId])
+}
+
+// A paid promotion window — the record behind Listing.promoTier. A scheduled
+// job (see PromotionsService) reverts promoTier to STANDARD once expiresAt
+// passes, so promoTier itself is always a fast, denormalized read.
+model ListingPromotion {
+  id            String           @id @default(cuid())
+  listingId     String
+  listing       Listing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  tier          ListingPromoTier
+  purchasedById String
+  purchasedBy   User             @relation(fields: [purchasedById], references: [id])
+  price         Decimal          @db.Decimal(14, 2)
+  startsAt      DateTime         @default(now())
+  expiresAt     DateTime
+  createdAt     DateTime         @default(now())
+
+  @@index([listingId])
+  @@index([expiresAt])
 }
 
 model ListingPhoto {
@@ -470,6 +597,9 @@ model Report {
   listing    Listing?         @relation(fields: [listingId], references: [id])
   reason     String
   status     ReportStatus     @default(OPEN)
+  // Freeform note an admin leaves when resolving/dismissing — who actioned it
+  // and when is already covered by AuditLog, this is just the "why".
+  resolutionNotes String?
   createdAt  DateTime         @default(now())
 
   @@index([status])
@@ -486,6 +616,33 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([actorId, createdAt])
+}
+
+// News, guides, and area-insight pieces — one model covers all three via
+// `category` (§14 of the platform blueprint, Phase 5). The admin editor is
+// deliberately plain: title/slug/excerpt/body/cover/category/tags/meta
+// fields and a draft -> scheduled -> published status, not a page builder.
+model Article {
+  id              String          @id @default(cuid())
+  title           String
+  slug            String          @unique
+  excerpt         String
+  body            String
+  coverImageUrl   String?
+  category        ArticleCategory
+  tags            String[]        @default([])
+  authorId        String
+  author          User            @relation(fields: [authorId], references: [id])
+  status          ArticleStatus   @default(DRAFT)
+  publishedAt     DateTime?
+  metaTitle       String?
+  metaDescription String?
+  viewCount       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status, category])
+  @@index([publishedAt])
 }
 
 // ---------------------------------------------------------------------------

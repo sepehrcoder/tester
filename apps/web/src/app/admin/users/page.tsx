@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Table } from "@/components/shared/Table";
 import { Badge } from "@/components/ui/Badge";
@@ -29,7 +30,14 @@ export default function AdminUsersPage() {
           keyFor={(u) => u.id}
           emptyMessage="No users yet."
           columns={[
-            { header: "Name", cell: (u) => <span className="font-semibold">{u.name}</span> },
+            {
+              header: "Name",
+              cell: (u) => (
+                <Link href={`/admin/users/${u.id}`} className="font-semibold hover:underline">
+                  {u.name}
+                </Link>
+              ),
+            },
             { header: "Role", cell: (u) => <Badge variant="ghost">{u.role.replaceAll("_", " ")}</Badge> },
             { header: "Phone", cell: (u) => u.phone },
             { header: "Email", cell: (u) => u.email ?? "—" },

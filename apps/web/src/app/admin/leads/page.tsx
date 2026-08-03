@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Table } from "@/components/shared/Table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -31,9 +32,9 @@ export default function AdminLeadsPage() {
             {
               header: "Requirement",
               cell: (l) => (
-                <span>
+                <Link href={`/admin/leads/${l.id}`} className="hover:underline">
                   {l.requirement.propertyType} · {l.requirement.purpose} · {l.requirement.city}
-                </span>
+                </Link>
               ),
             },
             { header: "Status", cell: (l) => <StatusBadge status={l.status} /> },

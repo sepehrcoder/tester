@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Table } from "@/components/shared/Table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -47,7 +48,14 @@ export default function AdminReportsPage() {
           emptyMessage="No reports filed."
           columns={[
             { header: "Reported by", cell: (r) => r.reporter.name },
-            { header: "Target", cell: (r) => (r.listing ? r.listing.title : r.targetType) },
+            {
+              header: "Target",
+              cell: (r) => (
+                <Link href={`/admin/reports/${r.id}`} className="hover:underline">
+                  {r.listing ? r.listing.title : r.targetType}
+                </Link>
+              ),
+            },
             { header: "Reason", cell: (r) => <span className="text-ink-soft">{r.reason}</span> },
             { header: "Status", cell: (r) => <StatusBadge status={r.status} /> },
             {

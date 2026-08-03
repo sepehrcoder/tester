@@ -16,6 +16,9 @@ import { AdminModule } from './admin/admin.module';
 import { CompanyModule } from './company/company.module';
 import { PropertiesModule } from './properties/properties.module';
 import { AiModule } from './ai/ai.module';
+import { LocationsModule } from './locations/locations.module';
+import { FavoritesModule } from './favorites/favorites.module';
+import { ArticlesModule } from './articles/articles.module';
 
 @Module({
   imports: [
@@ -34,6 +37,9 @@ import { AiModule } from './ai/ai.module';
     CompanyModule,
     PropertiesModule,
     AiModule,
+    LocationsModule,
+    FavoritesModule,
+    ArticlesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

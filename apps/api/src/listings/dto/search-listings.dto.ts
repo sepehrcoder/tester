@@ -17,6 +17,11 @@ export class SearchListingsDto {
   @IsString()
   city?: string;
 
+  @ApiPropertyOptional({ description: 'Match listings in this Phase — powers "similar in this phase" (§03/1)' })
+  @IsOptional()
+  @IsString()
+  phaseId?: string;
+
   @ApiPropertyOptional({ enum: ListingPurpose })
   @IsOptional()
   @IsEnum(ListingPurpose)

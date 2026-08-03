@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { IconMapPin } from "@repo/icons/web";
 import { Badge } from "@/components/ui/Badge";
+import { FavoriteButton } from "./FavoriteButton";
 
 export interface Property {
   id?: string;
@@ -11,16 +12,18 @@ export interface Property {
   title: string;
   location: string;
   verified?: boolean;
+  promoTier?: string;
   tag: string;
   photoUrl?: string;
+  phone?: string;
 }
 
-export function PropertyCard({ id, price, title, location, verified, tag, photoUrl }: Property) {
+export function PropertyCard({ id, price, title, location, verified, promoTier, tag, photoUrl }: Property) {
   const [imageFailed, setImageFailed] = useState(false);
 
   const card = (
     <article className="surface-flat flex gap-4 p-4">
-      <div className="h-20 w-24 flex-shrink-0 overflow-hidden rounded-sm bg-linear-to-br from-violet to-cyan">
+      <div className="relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-sm bg-linear-to-br from-violet to-cyan">
         {photoUrl && !imageFailed && (
           // eslint-disable-next-line @next/next/no-img-element -- external hotlinked stock photo
           <img
@@ -30,6 +33,7 @@ export function PropertyCard({ id, price, title, location, verified, tag, photoU
             onError={() => setImageFailed(true)}
           />
         )}
+        {id && <FavoriteButton listingId={id} className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-pill bg-canvas/80 text-ink-soft" />}
       </div>
       <div className="min-w-0 flex-1">
         <p className="tabular font-display text-lg font-extrabold text-ink">{price}</p>
@@ -39,6 +43,7 @@ export function PropertyCard({ id, price, title, location, verified, tag, photoU
           {location}
         </p>
         <div className="mt-2 flex gap-1.5">
+          {promoTier && promoTier !== "STANDARD" && <Badge variant="ember">{promoTier === "PREMIUM" ? "Premium" : "Featured"}</Badge>}
           {verified && <Badge variant="teal">Verified</Badge>}
           <Badge variant="ghost">{tag}</Badge>
         </div>

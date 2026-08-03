@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Table } from "@/components/shared/Table";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -37,10 +38,10 @@ export default function AdminLeasesPage() {
             {
               header: "Unit",
               cell: (l) => (
-                <div>
+                <Link href={`/admin/leases/${l.id}`} className="block hover:underline">
                   <p className="font-semibold">{l.unit.title}</p>
                   <p className="text-xs text-ink-soft">{l.unit.plaza ? l.unit.plaza.name : (l.unit.owner?.name ?? "Unlinked owner")}</p>
-                </div>
+                </Link>
               ),
             },
             { header: "Tenant", cell: (l) => `${l.tenant.name} (${l.tenant.phone})` },
