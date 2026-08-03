@@ -1,18 +1,11 @@
 import Link from "next/link";
-import { IconVerified } from "@repo/icons/web";
+import { IconBuilding, IconHome, IconMapPin, IconVerified } from "@repo/icons/web";
 import { AppNav } from "@/components/marketing/AppNav";
 import { MarketingSearchBar } from "@/components/marketing/SearchBar";
 import { PropertyCard, type Property } from "@/components/marketing/PropertyCard";
 import { Button } from "@/components/ui/Button";
 import { API_URL } from "@/lib/api";
-
-function formatPKR(value: number) {
-  const rounded = Math.round(value).toString();
-  const last3 = rounded.slice(-3);
-  const rest = rounded.slice(0, -3);
-  const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," : "";
-  return `PKR ${grouped}${last3}`;
-}
+import { formatPKR } from "@/lib/price";
 
 interface ApiListing {
   id: string;
@@ -27,39 +20,54 @@ interface ApiListing {
   photos: { url: string }[];
 }
 
-async function getListings(): Promise<{ listings: Property[]; live: boolean }> {
+function toProperty(item: ApiListing): Property {
+  return {
+    id: item.id,
+    price: formatPKR(item.price),
+    title: item.title,
+    location: `${item.area}, ${item.city}`,
+    verified: item.verified,
+    promoTier: item.promoTier,
+    tag: item.beds ? `${item.beds} bed` : item.source === "OWNER" ? "Owner listed" : "Listing",
+    photoUrl: item.photos[0]?.url,
+  };
+}
+
+const SAMPLE_LISTINGS: Property[] = [
+  { price: "PKR 1,85,00,000", title: "5 Marla, 3 bed corner plot", location: "Bahria Town, Phase 7, Lahore", tag: "3 bed", verified: true },
+  { price: "PKR 92,00,000", title: "10 Marla residential plot", location: "Gulberg Greens, Lahore", tag: "Owner listed" },
+  { price: "PKR 3,20,00,000", title: "1 Kanal, west-facing villa", location: "DHA Phase 6, Lahore", tag: "6 bed", verified: true },
+];
+
+const CATEGORIES = [
+  { label: "Houses", icon: IconHome, params: { propertyType: "HOUSE" } },
+  { label: "Apartments", icon: IconBuilding, params: { propertyType: "APARTMENT" } },
+  { label: "Plots", icon: IconMapPin, params: { propertyType: "PLOT" } },
+  { label: "Commercial", icon: IconBuilding, params: { propertyType: "COMMERCIAL" } },
+];
+
+const CITIES = ["Lahore", "Karachi", "Islamabad", "Rawalpindi", "Faisalabad"];
+
+async function getJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${API_URL}/listings?pageSize=6`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`API returned ${res.status}`);
-    const data: { items: ApiListing[] } = await res.json();
-    return {
-      live: true,
-      listings: data.items.map((item) => ({
-        id: item.id,
-        price: formatPKR(Number(item.price)),
-        title: item.title,
-        location: `${item.area}, ${item.city}`,
-        verified: item.verified,
-        promoTier: item.promoTier,
-        tag: item.beds ? `${item.beds} bed` : item.source === "OWNER" ? "Owner listed" : "Listing",
-        photoUrl: item.photos[0]?.url,
-      })),
-    };
+    return (await res.json()) as T;
   } catch {
-    // API not running (e.g. static preview) — fall back to sample data so the page still demos the design.
-    return {
-      live: false,
-      listings: [
-        { price: "PKR 1,85,00,000", title: "5 Marla, 3 bed corner plot", location: "Bahria Town, Phase 7, Lahore", tag: "3 bed", verified: true },
-        { price: "PKR 92,00,000", title: "10 Marla residential plot", location: "Gulberg Greens, Lahore", tag: "Owner listed" },
-        { price: "PKR 3,20,00,000", title: "1 Kanal, west-facing villa", location: "DHA Phase 6, Lahore", tag: "6 bed", verified: true },
-      ],
-    };
+    return null;
   }
 }
 
 export default async function Home() {
-  const { listings, live } = await getListings();
+  const [listingsRes, featuredRes, stats] = await Promise.all([
+    getJson<{ items: ApiListing[] }>("/listings?pageSize=6"),
+    getJson<{ items: ApiListing[] }>("/listings?pageSize=4"),
+    getJson<{ totalListings: number; verifiedDealers: number; cities: number }>("/listings/stats"),
+  ]);
+
+  const live = listingsRes !== null;
+  const listings = listingsRes ? listingsRes.items.map(toProperty) : SAMPLE_LISTINGS;
+  const featured = (featuredRes?.items ?? []).filter((l) => l.promoTier !== "STANDARD").map(toProperty);
 
   return (
     <>
@@ -103,10 +111,81 @@ export default async function Home() {
             </p>
           )}
 
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {listings.map((l) => (
-              <PropertyCard key={l.id ?? l.title} {...l} />
-            ))}
+          <section className="mb-10">
+            <h2 className="mb-3 font-display text-sm font-bold text-ink">Browse by category</h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {CATEGORIES.map(({ label, icon: Icon, params }) => (
+                <Link
+                  key={label}
+                  href={`/listings?${new URLSearchParams(params).toString()}`}
+                  className="surface-flat flex flex-col items-center gap-2 p-5 text-center transition-transform hover:scale-[1.02]"
+                >
+                  <span className="flex h-11 w-11 items-center justify-center rounded-pill bg-ember-soft text-ember">
+                    <Icon size={20} />
+                  </span>
+                  <span className="font-body text-sm font-semibold text-ink">{label}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="mb-10">
+            <h2 className="mb-3 font-display text-sm font-bold text-ink">Browse by city</h2>
+            <div className="flex flex-wrap gap-2">
+              {CITIES.map((city) => (
+                <Link
+                  key={city}
+                  href={`/listings?city=${encodeURIComponent(city)}`}
+                  className="surface-flat px-4 py-2 font-body text-sm font-semibold text-ink-soft transition-colors hover:text-ink"
+                >
+                  {city}
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {featured.length > 0 && (
+            <section className="mb-10">
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="font-display text-sm font-bold text-ink">Featured listings</h2>
+                <Link href="/listings" className="font-body text-xs font-semibold text-teal">
+                  See all →
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {featured.map((l) => (
+                  <PropertyCard key={l.id} {...l} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {stats && (
+            <section className="surface-glass mb-10 grid grid-cols-3 gap-4 p-6 text-center">
+              <div>
+                <p className="font-display text-2xl font-extrabold text-ink">{stats.totalListings.toLocaleString()}+</p>
+                <p className="font-body text-xs text-ink-faint">Live listings</p>
+              </div>
+              <div>
+                <p className="font-display text-2xl font-extrabold text-ink">{stats.verifiedDealers.toLocaleString()}+</p>
+                <p className="font-body text-xs text-ink-faint">Verified dealers</p>
+              </div>
+              <div>
+                <p className="font-display text-2xl font-extrabold text-ink">{stats.cities}</p>
+                <p className="font-body text-xs text-ink-faint">Cities covered</p>
+              </div>
+            </section>
+          )}
+
+          <section>
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="font-display text-sm font-bold text-ink">Recent listings</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {listings.map((l) => (
+                <PropertyCard key={l.id ?? l.title} {...l} />
+              ))}
+            </div>
           </section>
 
           <div className="mt-6 text-center">

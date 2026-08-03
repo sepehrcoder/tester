@@ -37,6 +37,21 @@ export class ListingsService {
     });
   }
 
+  // Public homepage trust-strip numbers (§02/§06 of the platform blueprint) —
+  // deliberately cheap, coarse counts, not a full admin analytics query.
+  async stats() {
+    const [totalListings, verifiedDealers, cities] = await Promise.all([
+      this.prisma.listing.count({ where: { status: 'APPROVED' } }),
+      this.prisma.dealerProfile.count({ where: { kycStatus: 'APPROVED' } }),
+      this.prisma.listing.findMany({
+        where: { status: 'APPROVED' },
+        distinct: ['city'],
+        select: { city: true },
+      }),
+    ]);
+    return { totalListings, verifiedDealers, cities: cities.length };
+  }
+
   async search(query: SearchListingsDto) {
     const where = {
       status: 'APPROVED' as ListingStatus,

@@ -45,6 +45,11 @@ export class ListingsController {
     return this.listings.search(query);
   }
 
+  @Get('stats')
+  stats() {
+    return this.listings.stats();
+  }
+
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get('mine')
