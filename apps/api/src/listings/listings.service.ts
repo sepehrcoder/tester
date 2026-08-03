@@ -153,6 +153,16 @@ export class ListingsService {
     if (listing.status !== 'APPROVED' && !isOwnerOrAdmin) {
       throw new NotFoundException('Listing not found');
     }
+
+    // Coarse view counter (§11/§12) — only real visitors, not the owner
+    // checking their own listing or an admin reviewing it. Fire-and-forget:
+    // a view is not worth blocking the response on.
+    if (!isOwnerOrAdmin) {
+      this.prisma.listing
+        .update({ where: { id }, data: { viewCount: { increment: 1 } } })
+        .catch(() => {});
+    }
+
     return listing;
   }
 

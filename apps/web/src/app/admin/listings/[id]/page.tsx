@@ -23,6 +23,7 @@ interface ListingDetail {
   status: string;
   verified: boolean;
   promoTier: string;
+  viewCount: number;
   purpose: string;
   propertyType: string;
   beds: number | null;
@@ -392,6 +393,7 @@ export default function AdminListingDetailPage() {
                 value: [data.society?.name, data.phase?.name, data.block?.name].filter(Boolean).join(" › ") || "Unstructured",
               },
               { label: "Photos", value: data.photos.length },
+              { label: "Views", value: data.viewCount.toLocaleString() },
               { label: "Posted", value: new Date(data.createdAt).toLocaleDateString() },
             ]}
           />

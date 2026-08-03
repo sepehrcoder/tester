@@ -7,6 +7,7 @@ import { IconChat, IconClock, IconMapPin, IconReport, IconShare, IconStar, IconV
 import { AppNav } from "@/components/marketing/AppNav";
 import { PhotoGallery } from "@/components/listings/PhotoGallery";
 import { PropertyCard, type Property } from "@/components/marketing/PropertyCard";
+import { FavoriteButton } from "@/components/marketing/FavoriteButton";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -248,6 +249,11 @@ export default function ListingDetailPage() {
                     <span className="truncate text-ink-soft">{listing.title}</span>
                   </nav>
                   <div className="flex flex-shrink-0 items-center gap-1">
+                    <FavoriteButton
+                      listingId={listing.id}
+                      showLabel
+                      className="flex items-center gap-1 rounded-sm px-2 py-1 font-body text-xs font-semibold text-ink-faint hover:text-ink"
+                    />
                     <button
                       type="button"
                       onClick={share}

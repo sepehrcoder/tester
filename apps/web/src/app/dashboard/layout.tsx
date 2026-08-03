@@ -4,12 +4,13 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 import { DashboardShell, type DashboardNavItem } from "@/components/shared/DashboardShell";
-import { IconAnalytics, IconDocument, IconBuilding, IconClients, IconChat } from "@repo/icons/web";
+import { IconAnalytics, IconDocument, IconBuilding, IconClients, IconChat, IconHeart } from "@repo/icons/web";
 
 const NAV: DashboardNavItem[] = [
   { href: "/dashboard", label: "Overview", icon: IconAnalytics, exact: true },
   { href: "/dashboard/requirements", label: "My requirements", icon: IconDocument },
   { href: "/dashboard/listings", label: "My listings", icon: IconBuilding },
+  { href: "/dashboard/favorites", label: "Saved listings", icon: IconHeart },
   { href: "/dashboard/rentals", label: "My rentals", icon: IconClients },
   { href: "/dashboard/messages", label: "Messages", icon: IconChat },
 ];

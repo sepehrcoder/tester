@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { displayFont, bodyFont } from "@/fonts";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { FavoritesProvider } from "@/providers/FavoritesProvider";
 import { AiAssistantWidget } from "@/components/ai/AiAssistantWidget";
 import "./globals.css";
 
@@ -21,8 +22,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          {children}
-          <AiAssistantWidget />
+          <FavoritesProvider>
+            {children}
+            <AiAssistantWidget />
+          </FavoritesProvider>
         </AuthProvider>
       </body>
     </html>

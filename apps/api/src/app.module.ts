@@ -17,6 +17,7 @@ import { CompanyModule } from './company/company.module';
 import { PropertiesModule } from './properties/properties.module';
 import { AiModule } from './ai/ai.module';
 import { LocationsModule } from './locations/locations.module';
+import { FavoritesModule } from './favorites/favorites.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { LocationsModule } from './locations/locations.module';
     PropertiesModule,
     AiModule,
     LocationsModule,
+    FavoritesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

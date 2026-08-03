@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { IconChat, IconMapPin, IconPhone } from "@repo/icons/web";
 import { Badge } from "@/components/ui/Badge";
+import { FavoriteButton } from "./FavoriteButton";
 import type { Property } from "./PropertyCard";
 
 // The dense one-listing-per-row search-results layout, corrected against
@@ -14,11 +15,12 @@ export function PropertyRow({ id, price, title, location, verified, promoTier, t
 
   const row = (
     <article className="surface-flat flex gap-4 p-4">
-      <div className="h-24 w-32 flex-shrink-0 overflow-hidden rounded-sm bg-linear-to-br from-violet to-cyan sm:h-28 sm:w-40">
+      <div className="relative h-24 w-32 flex-shrink-0 overflow-hidden rounded-sm bg-linear-to-br from-violet to-cyan sm:h-28 sm:w-40">
         {photoUrl && !imageFailed && (
           // eslint-disable-next-line @next/next/no-img-element -- external hotlinked stock photo
           <img src={photoUrl} alt="" className="h-full w-full object-cover" onError={() => setImageFailed(true)} />
         )}
+        {id && <FavoriteButton listingId={id} className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-pill bg-canvas/80 text-ink-soft" />}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">

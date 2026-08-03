@@ -201,6 +201,7 @@ model User {
 
   listings          Listing[]
   listingPromotions ListingPromotion[]
+  favorites         Favorite[]
   requirements      Requirement[]
   leadsAsDealer     Lead[]                    @relation("LeadDealer")
   leadAssignments   LeadAssignment[]
@@ -312,6 +313,11 @@ model Listing {
   // each other (see the platform blueprint, §03/3).
   verified     Boolean        @default(false)
   promoTier    ListingPromoTier @default(STANDARD)
+  // Per-listing activity stat (§11/§12 of the platform blueprint) — bumped
+  // on each public single-listing fetch; deliberately not deduped per
+  // viewer, so this is a coarse popularity signal, not unique-visitor
+  // analytics.
+  viewCount    Int            @default(0)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -319,9 +325,23 @@ model Listing {
   conversations Conversation[]
   reports       Report[]
   promotions    ListingPromotion[]
+  favoritedBy   Favorite[]
 
   @@index([status, purpose, propertyType, city])
   @@index([phaseId])
+}
+
+// "My saved listings" (§04/§12 of the platform blueprint, Phase 4).
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
 }
 
 // Structured location hierarchy — City -> Society -> Phase -> Block (§03/1

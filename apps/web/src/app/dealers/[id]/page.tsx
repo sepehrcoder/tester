@@ -6,8 +6,15 @@ import { IconStar, IconVerified } from "@repo/icons/web";
 import { AppNav } from "@/components/marketing/AppNav";
 import { PropertyCard, type Property } from "@/components/marketing/PropertyCard";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { apiFetch, ApiError } from "@/lib/api";
 import { formatPKR } from "@/lib/price";
+import { useAuth } from "@/providers/AuthProvider";
+
+interface MyRequirement {
+  id: string;
+  leads: { id: string; dealerId: string | null; status: string }[];
+}
 
 interface DealerListing {
   id: string;
@@ -72,9 +79,16 @@ function toProperty(item: DealerListing): Property {
 
 export default function DealerProfilePage() {
   const params = useParams<{ id: string }>();
+  const { user, accessToken } = useAuth();
   const [dealer, setDealer] = useState<DealerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [eligibleLeadId, setEligibleLeadId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<DealerProfile>(`/users/${params.id}/public`)
@@ -82,6 +96,42 @@ export default function DealerProfilePage() {
       .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this profile"))
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  useEffect(() => {
+    if (!user || user.role !== "CUSTOMER" || !accessToken) return;
+    apiFetch<MyRequirement[]>("/requirements/mine", { token: accessToken })
+      .then((requirements) => {
+        for (const req of requirements) {
+          const closedWithDealer = req.leads.find(
+            (l) => l.dealerId === params.id && (l.status === "CLOSED_WON" || l.status === "CLOSED_LOST"),
+          );
+          if (closedWithDealer) {
+            setEligibleLeadId(closedWithDealer.id);
+            break;
+          }
+        }
+      })
+      .catch(() => {});
+  }, [user, accessToken, params.id]);
+
+  async function submitReview() {
+    if (!eligibleLeadId) return;
+    setReviewSubmitting(true);
+    setReviewError(null);
+    try {
+      await apiFetch("/reviews", {
+        method: "POST",
+        token: accessToken,
+        body: { dealerId: params.id, leadId: eligibleLeadId, rating: reviewRating, comment: reviewComment || undefined },
+      });
+      setReviewSubmitted(true);
+      setEligibleLeadId(null);
+    } catch (err) {
+      setReviewError(err instanceof ApiError ? err.message : "Couldn't submit the review");
+    } finally {
+      setReviewSubmitting(false);
+    }
+  }
 
   return (
     <>
@@ -142,6 +192,32 @@ export default function DealerProfilePage() {
                 )}
 
                 <h2 className="mt-8 font-display text-sm font-bold text-ink">Reviews ({dealer.reviews.length})</h2>
+
+                {eligibleLeadId && (
+                  <div className="surface-flat mt-3 p-4">
+                    <p className="font-body text-xs font-bold text-ink">Leave a review</p>
+                    <div className="mt-2 flex gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button key={n} type="button" onClick={() => setReviewRating(n)} aria-label={`${n} stars`}>
+                          <IconStar size={20} className={n <= reviewRating ? "text-teal" : "text-ink-faint"} />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="How was your experience? (optional)"
+                      rows={2}
+                      className="mt-2 w-full rounded-sm border border-flat-border bg-canvas px-3 py-2 font-body text-sm text-ink outline-none placeholder:text-ink-faint focus:border-ember"
+                    />
+                    {reviewError && <p className="mt-1 font-body text-xs text-ember">{reviewError}</p>}
+                    <Button variant="primary" onClick={submitReview} disabled={reviewSubmitting} className="mt-2">
+                      {reviewSubmitting ? "Submitting…" : "Submit review"}
+                    </Button>
+                  </div>
+                )}
+                {reviewSubmitted && <p className="mt-3 font-body text-xs text-teal">Thanks for your review!</p>}
+
                 {dealer.reviews.length === 0 ? (
                   <p className="mt-2 font-body text-sm text-ink-faint">No reviews yet.</p>
                 ) : (
