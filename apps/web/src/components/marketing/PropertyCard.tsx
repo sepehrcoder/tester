@@ -11,11 +11,12 @@ export interface Property {
   title: string;
   location: string;
   verified?: boolean;
+  promoTier?: string;
   tag: string;
   photoUrl?: string;
 }
 
-export function PropertyCard({ id, price, title, location, verified, tag, photoUrl }: Property) {
+export function PropertyCard({ id, price, title, location, verified, promoTier, tag, photoUrl }: Property) {
   const [imageFailed, setImageFailed] = useState(false);
 
   const card = (
@@ -39,6 +40,7 @@ export function PropertyCard({ id, price, title, location, verified, tag, photoU
           {location}
         </p>
         <div className="mt-2 flex gap-1.5">
+          {promoTier && promoTier !== "STANDARD" && <Badge variant="ember">{promoTier === "PREMIUM" ? "Premium" : "Featured"}</Badge>}
           {verified && <Badge variant="teal">Verified</Badge>}
           <Badge variant="ghost">{tag}</Badge>
         </div>

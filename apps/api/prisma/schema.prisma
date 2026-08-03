@@ -57,6 +57,14 @@ enum ListingStatus {
   ARCHIVED
 }
 
+// Promotion tier — orthogonal to Listing.verified (trust). See §03/3 of the
+// platform blueprint: Popular/Featured-equivalent, then a top paid tier.
+enum ListingPromoTier {
+  STANDARD
+  FEATURED
+  PREMIUM
+}
+
 enum RequirementStatus {
   OPEN
   CLOSED
@@ -192,6 +200,7 @@ model User {
   maintenanceRaised    MaintenanceRequest[] @relation("MaintenanceRaisedBy")
 
   listings          Listing[]
+  listingPromotions ListingPromotion[]
   requirements      Requirement[]
   leadsAsDealer     Lead[]                    @relation("LeadDealer")
   leadAssignments   LeadAssignment[]
@@ -288,15 +297,39 @@ model Listing {
   baths        Int?
   sizeValue    Float?
   sizeUnit     String? // "marla" | "kanal" | "sqft"
+  // Trust flag — independent of promoTier below. A listing can be verified
+  // AND standard tier, or unverified AND promoted; the two axes don't imply
+  // each other (see the platform blueprint, §03/3).
   verified     Boolean        @default(false)
+  promoTier    ListingPromoTier @default(STANDARD)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
   photos        ListingPhoto[]
   conversations Conversation[]
   reports       Report[]
+  promotions    ListingPromotion[]
 
   @@index([status, purpose, propertyType, city])
+}
+
+// A paid promotion window — the record behind Listing.promoTier. A scheduled
+// job (see PromotionsService) reverts promoTier to STANDARD once expiresAt
+// passes, so promoTier itself is always a fast, denormalized read.
+model ListingPromotion {
+  id            String           @id @default(cuid())
+  listingId     String
+  listing       Listing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  tier          ListingPromoTier
+  purchasedById String
+  purchasedBy   User             @relation(fields: [purchasedById], references: [id])
+  price         Decimal          @db.Decimal(14, 2)
+  startsAt      DateTime         @default(now())
+  expiresAt     DateTime
+  createdAt     DateTime         @default(now())
+
+  @@index([listingId])
+  @@index([expiresAt])
 }
 
 model ListingPhoto {

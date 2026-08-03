@@ -22,6 +22,7 @@ interface ApiListing {
   area: string;
   beds: number | null;
   verified: boolean;
+  promoTier: string;
   source: "DEALER" | "OWNER";
   photos: { url: string }[];
 }
@@ -39,6 +40,7 @@ async function getListings(): Promise<{ listings: Property[]; live: boolean }> {
         title: item.title,
         location: `${item.area}, ${item.city}`,
         verified: item.verified,
+        promoTier: item.promoTier,
         tag: item.beds ? `${item.beds} bed` : item.source === "OWNER" ? "Owner listed" : "Listing",
         photoUrl: item.photos[0]?.url,
       })),
@@ -114,10 +116,18 @@ export default async function Home() {
           </div>
         </main>
 
-        <footer className="px-4 pb-10 pt-6 text-center font-body text-xs text-ink-faint">
-          Aurora Glass design system — foundation build. See{" "}
-          <code className="text-ink-soft">packages/theme</code> for tokens and{" "}
-          <code className="text-ink-soft">packages/icons</code> for the shared icon set.
+        <footer className="border-t border-flat-border px-4 py-8">
+          <div className="mx-auto flex w-full max-w-5xl flex-col items-center justify-between gap-4 sm:flex-row">
+            <p className="font-display text-sm font-bold text-ink">Manzil</p>
+            <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-body text-xs text-ink-soft">
+              <Link href="/about" className="hover:text-ink">About</Link>
+              <Link href="/dealers" className="hover:text-ink">Dealers</Link>
+              <Link href="/contact" className="hover:text-ink">Contact</Link>
+              <Link href="/terms" className="hover:text-ink">Terms</Link>
+              <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+            </nav>
+            <p className="font-body text-xs text-ink-faint">© {new Date().getFullYear()} Manzil</p>
+          </div>
         </footer>
       </div>
     </>

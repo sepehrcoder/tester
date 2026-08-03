@@ -10,6 +10,14 @@ import { SearchListingsDto } from './dto/search-listings.dto';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import type { ListingStatus } from '../../generated/prisma/enums';
 
+// Flat per-tier day rate, PKR — the simplest self-serve promotion model
+// from the platform blueprint (§15): a fixed price for a fixed window,
+// auto-reverting to STANDARD on expiry. No plans, no billing cycles.
+const PROMO_DAILY_RATE: Record<'FEATURED' | 'PREMIUM', number> = {
+  FEATURED: 200,
+  PREMIUM: 500,
+};
+
 @Injectable()
 export class ListingsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -53,7 +61,9 @@ export class ListingsService {
       this.prisma.listing.findMany({
         where,
         include: { photos: { orderBy: { order: 'asc' }, take: 1 } },
-        orderBy: { createdAt: 'desc' },
+        // promoTier desc relies on Postgres enum declaration order
+        // (STANDARD < FEATURED < PREMIUM) to rank paid placements first.
+        orderBy: [{ promoTier: 'desc' }, { createdAt: 'desc' }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),
@@ -75,6 +85,7 @@ export class ListingsService {
             role: true,
             avatarUrl: true,
             createdAt: true,
+            phone: true,
             dealerProfile: {
               select: {
                 agencyName: true,
@@ -157,6 +168,57 @@ export class ListingsService {
       where: { id },
       data: { status, ...(verified !== undefined ? { verified } : {}) },
     });
+  }
+
+  // -- promotion (§15 of the platform blueprint) ----------------------------
+
+  async promote(
+    id: string,
+    tier: 'FEATURED' | 'PREMIUM',
+    days: number,
+    purchasedBy: AuthenticatedUser,
+  ) {
+    const listing = await this.prisma.listing.findUnique({ where: { id } });
+    if (!listing) throw new NotFoundException('Listing not found');
+
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const price = PROMO_DAILY_RATE[tier] * days;
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.listingPromotion.create({
+        data: { listingId: id, tier, price, expiresAt, purchasedById: purchasedBy.id },
+      }),
+      this.prisma.listing.update({
+        where: { id },
+        data: { promoTier: tier },
+      }),
+    ]);
+    return updated;
+  }
+
+  async unpromote(id: string) {
+    return this.prisma.listing.update({
+      where: { id },
+      data: { promoTier: 'STANDARD' },
+    });
+  }
+
+  /** Reverts any listing whose paid promotion window has passed back to STANDARD. */
+  async releaseExpiredPromotions(): Promise<number> {
+    const expired = await this.prisma.listing.findMany({
+      where: {
+        promoTier: { not: 'STANDARD' },
+        promotions: { some: { expiresAt: { lt: new Date() } } },
+      },
+      select: { id: true },
+    });
+    if (expired.length === 0) return 0;
+
+    await this.prisma.listing.updateMany({
+      where: { id: { in: expired.map((l) => l.id) } },
+      data: { promoTier: 'STANDARD' },
+    });
+    return expired.length;
   }
 
   private async assertOwnerOrAdmin(user: AuthenticatedUser, listingId: string) {

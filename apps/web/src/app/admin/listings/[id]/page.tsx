@@ -19,6 +19,7 @@ interface ListingDetail {
   area: string;
   status: string;
   verified: boolean;
+  promoTier: string;
   purpose: string;
   propertyType: string;
   beds: number | null;
@@ -70,6 +71,30 @@ export default function AdminListingDetailPage() {
     setBusy(true);
     try {
       await apiFetch(`/admin/listings/${params.id}/moderate`, { method: "PATCH", token: accessToken, body: { status, verified } });
+      refetch();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function promote(tier: "FEATURED" | "PREMIUM") {
+    setBusy(true);
+    try {
+      await apiFetch(`/admin/listings/${params.id}/promote`, { method: "PATCH", token: accessToken, body: { tier, days: 30 } });
+      refetch();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unpromote() {
+    setBusy(true);
+    try {
+      await apiFetch(`/admin/listings/${params.id}/unpromote`, { method: "PATCH", token: accessToken });
       refetch();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Something went wrong");
@@ -144,6 +169,7 @@ export default function AdminListingDetailPage() {
           <div className="flex gap-2">
             <StatusBadge status={data.status} />
             {data.verified && <Badge variant="teal">Verified</Badge>}
+            {data.promoTier !== "STANDARD" && <Badge variant="ember">{data.promoTier}</Badge>}
           </div>
         }
       />
@@ -177,6 +203,32 @@ export default function AdminListingDetailPage() {
         >
           Edit
         </button>
+        {data.promoTier === "STANDARD" ? (
+          <>
+            <button
+              disabled={busy}
+              onClick={() => promote("FEATURED")}
+              className="rounded-sm bg-flat px-3 py-1.5 font-body text-xs font-bold text-ink-soft disabled:opacity-50"
+            >
+              Feature (30d)
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => promote("PREMIUM")}
+              className="rounded-sm bg-flat px-3 py-1.5 font-body text-xs font-bold text-ink-soft disabled:opacity-50"
+            >
+              Promote to Premium (30d)
+            </button>
+          </>
+        ) : (
+          <button
+            disabled={busy}
+            onClick={unpromote}
+            className="rounded-sm bg-flat px-3 py-1.5 font-body text-xs font-bold text-ink-soft disabled:opacity-50"
+          >
+            Remove promotion
+          </button>
+        )}
         <button
           disabled={busy}
           onClick={deleteListing}

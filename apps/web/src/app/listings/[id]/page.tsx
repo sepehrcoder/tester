@@ -10,6 +10,7 @@ import { PropertyCard, type Property } from "@/components/marketing/PropertyCard
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { apiFetch, ApiError } from "@/lib/api";
+import { formatPKR, formatPKRWords } from "@/lib/price";
 import { useAuth } from "@/providers/AuthProvider";
 
 interface ListingDetail {
@@ -26,6 +27,7 @@ interface ListingDetail {
   sizeValue: number | null;
   sizeUnit: string | null;
   verified: boolean;
+  promoTier: string;
   status: string;
   createdAt: string;
   photos: { id: string; url: string }[];
@@ -34,6 +36,7 @@ interface ListingDetail {
     name: string;
     role: string;
     createdAt: string;
+    phone: string;
     dealerProfile: { agencyName: string | null; ratingAvg: number; ratingCount: number; kycStatus: string } | null;
   };
 }
@@ -46,6 +49,7 @@ interface ApiListing {
   area: string;
   beds: number | null;
   verified: boolean;
+  promoTier: string;
   source: "DEALER" | "OWNER";
   photos: { url: string }[];
 }
@@ -64,16 +68,6 @@ function mapUrl(city: string) {
   const d = 0.06;
   const bbox = `${lon - d},${lat - d},${lon + d},${lat + d}`;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;
-}
-
-function formatPKR(value: string) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return value;
-  const rounded = Math.round(n).toString();
-  const last3 = rounded.slice(-3);
-  const rest = rounded.slice(0, -3);
-  const grouped = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," : "";
-  return `PKR ${grouped}${last3}`;
 }
 
 function initials(name: string) {
@@ -125,6 +119,7 @@ export default function ListingDetailPage() {
               title: l.title,
               location: `${l.area}, ${l.city}`,
               verified: l.verified,
+              promoTier: l.promoTier,
               tag: l.beds ? `${l.beds} bed` : l.source === "OWNER" ? "Owner listed" : "Listing",
               photoUrl: l.photos[0]?.url,
             })),
@@ -175,6 +170,9 @@ export default function ListingDetailPage() {
                 <PhotoGallery photos={listing.photos} title={listing.title} />
 
                 <div className="mb-2 flex flex-wrap items-center gap-2">
+                  {listing.promoTier !== "STANDARD" && (
+                    <Badge variant="ember">{listing.promoTier === "PREMIUM" ? "Premium" : "Featured"}</Badge>
+                  )}
                   {listing.verified && (
                     <Badge variant="teal">
                       <IconVerified size={11} className="mr-1 inline" />
@@ -185,7 +183,10 @@ export default function ListingDetailPage() {
                   <Badge variant="ghost">{listing.purpose === "SALE" ? "For sale" : "For rent"}</Badge>
                 </div>
 
-                <p className="tabular font-display text-3xl font-extrabold text-ink">{formatPKR(listing.price)}</p>
+                <p className="tabular font-display text-3xl font-extrabold text-ink">
+                  {formatPKR(listing.price)}{" "}
+                  <span className="font-body text-base font-semibold text-ink-faint">({formatPKRWords(listing.price)})</span>
+                </p>
                 <h1 className="mt-1 font-display text-xl font-bold text-ink">{listing.title}</h1>
                 <p className="mt-1 flex items-center gap-1 font-body text-sm text-ink-soft">
                   <IconMapPin size={14} />
@@ -279,10 +280,22 @@ export default function ListingDetailPage() {
                         </Button>
                       </Link>
                     ) : (
-                      <Button variant="primary" onClick={messageOwner} disabled={messaging} className="w-full justify-center">
-                        <IconChat size={16} />
-                        {messaging ? "Starting chat…" : "Message"}
-                      </Button>
+                      <div className="flex gap-2">
+                        <a
+                          href={`https://wa.me/${listing.owner.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
+                            `Hi, I'm interested in "${listing.title}" on Manzil.`,
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-sm bg-[#25D366] px-5 py-3 font-body text-sm font-bold text-white transition-transform active:scale-[0.98]"
+                        >
+                          WhatsApp
+                        </a>
+                        <Button variant="primary" onClick={messageOwner} disabled={messaging} className="flex-1 justify-center">
+                          <IconChat size={16} />
+                          {messaging ? "…" : "Message"}
+                        </Button>
+                      </div>
                     )}
                   </div>
                   {messageError && <p className="mt-2 font-body text-xs text-ember">{messageError}</p>}

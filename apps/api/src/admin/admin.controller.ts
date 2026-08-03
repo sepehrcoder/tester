@@ -12,12 +12,14 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { ChatService } from '../chat/chat.service';
 import { LeadsService } from '../leads/leads.service';
+import { ListingsService } from '../listings/listings.service';
 import { ModerateListingDto } from './dto/moderate-listing.dto';
 import { ModerateKycDto } from './dto/moderate-kyc.dto';
 import { SuspendUserDto } from './dto/suspend-user.dto';
 import { ReassignLeadDto } from './dto/reassign-lead.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { ResolveReportDto } from './dto/resolve-report.dto';
+import { PromoteListingDto } from './dto/promote-listing.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -35,6 +37,7 @@ export class AdminController {
     private readonly admin: AdminService,
     private readonly chat: ChatService,
     private readonly leads: LeadsService,
+    private readonly listings: ListingsService,
   ) {}
 
   @Get('stats')
@@ -117,6 +120,20 @@ export class AdminController {
     @Body() dto: ModerateListingDto,
   ) {
     return this.admin.moderateListing(id, dto, admin);
+  }
+
+  @Patch('listings/:id/promote')
+  promoteListing(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: PromoteListingDto,
+  ) {
+    return this.listings.promote(id, dto.tier, dto.days, admin);
+  }
+
+  @Patch('listings/:id/unpromote')
+  unpromoteListing(@Param('id') id: string) {
+    return this.listings.unpromote(id);
   }
 
   @Get('leads')

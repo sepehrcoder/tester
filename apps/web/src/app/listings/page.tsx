@@ -18,6 +18,7 @@ interface ApiListing {
   area: string;
   beds: number | null;
   verified: boolean;
+  promoTier: string;
   source: "DEALER" | "OWNER";
   photos: { url: string }[];
 }
@@ -76,6 +77,7 @@ function ListingsSearchContent() {
             title: item.title,
             location: `${item.area}, ${item.city}`,
             verified: item.verified,
+            promoTier: item.promoTier,
             tag: item.beds ? `${item.beds} bed` : item.source === "OWNER" ? "Owner listed" : "Listing",
             photoUrl: item.photos[0]?.url,
           })),
