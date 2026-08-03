@@ -112,6 +112,20 @@ enum ReportStatus {
   DISMISSED
 }
 
+// -- content publishing (§14, Phase 5) -----------------------------------
+
+enum ArticleCategory {
+  NEWS
+  GUIDE
+  AREA_INSIGHT
+}
+
+enum ArticleStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+}
+
 // -- property management -----------------------------------------------
 
 enum FurnishingStatus {
@@ -214,6 +228,7 @@ model User {
   reports           Report[]
   refreshTokens     RefreshToken[]
   auditLogEntries   AuditLog[]
+  articles          Article[]
 
   @@index([role])
 }
@@ -601,6 +616,33 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([actorId, createdAt])
+}
+
+// News, guides, and area-insight pieces — one model covers all three via
+// `category` (§14 of the platform blueprint, Phase 5). The admin editor is
+// deliberately plain: title/slug/excerpt/body/cover/category/tags/meta
+// fields and a draft -> scheduled -> published status, not a page builder.
+model Article {
+  id              String          @id @default(cuid())
+  title           String
+  slug            String          @unique
+  excerpt         String
+  body            String
+  coverImageUrl   String?
+  category        ArticleCategory
+  tags            String[]        @default([])
+  authorId        String
+  author          User            @relation(fields: [authorId], references: [id])
+  status          ArticleStatus   @default(DRAFT)
+  publishedAt     DateTime?
+  metaTitle       String?
+  metaDescription String?
+  viewCount       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status, category])
+  @@index([publishedAt])
 }
 
 // ---------------------------------------------------------------------------

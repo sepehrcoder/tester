@@ -201,6 +201,7 @@ export default async function Home() {
             <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-body text-xs text-ink-soft">
               <Link href="/about" className="hover:text-ink">About</Link>
               <Link href="/dealers" className="hover:text-ink">Dealers</Link>
+              <Link href="/news" className="hover:text-ink">News</Link>
               <Link href="/contact" className="hover:text-ink">Contact</Link>
               <Link href="/terms" className="hover:text-ink">Terms</Link>
               <Link href="/privacy" className="hover:text-ink">Privacy</Link>

@@ -31,6 +31,7 @@ const NAV: { href: string; label: string; icon: typeof IconAnalytics; exact?: bo
   { href: "/admin/chat", label: "Chat monitoring", icon: IconChat },
   { href: "/admin/flagged", label: "Flagged queue", icon: IconAlert },
   { href: "/admin/reports", label: "Reports", icon: IconReport },
+  { href: "/admin/articles", label: "Articles", icon: IconDocument },
   { href: "/admin/audit-log", label: "Audit log", icon: IconDocument },
 ];
 

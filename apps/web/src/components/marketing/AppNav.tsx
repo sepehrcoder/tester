@@ -20,6 +20,9 @@ export function AppNav() {
         <Link href="/dealers" className="hidden font-body text-sm font-semibold text-ink-soft hover:text-ink sm:inline">
           Dealers
         </Link>
+        <Link href="/news" className="hidden font-body text-sm font-semibold text-ink-soft hover:text-ink sm:inline">
+          News
+        </Link>
       </div>
 
       <div className="flex items-center gap-3">
