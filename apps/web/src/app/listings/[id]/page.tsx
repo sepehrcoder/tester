@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { apiFetch, ApiError } from "@/lib/api";
 import { formatPKR, formatPKRWords } from "@/lib/price";
+import { sizeConversion } from "@/lib/size";
 import { useAuth } from "@/providers/AuthProvider";
 
 interface ListingDetail {
@@ -327,9 +328,13 @@ export default function ListingDetailPage() {
                   </div>
                   <div>
                     <p className="font-display text-lg font-bold text-ink">
-                      {listing.sizeValue ?? "—"} {listing.sizeValue != null ? listing.sizeUnit : ""}
+                      {listing.sizeValue != null && listing.sizeUnit ? sizeConversion(listing.sizeValue, listing.sizeUnit).primary : "—"}
                     </p>
-                    <p className="font-body text-xs text-ink-faint">Size</p>
+                    <p className="font-body text-xs text-ink-faint">
+                      {listing.sizeValue != null && listing.sizeUnit
+                        ? sizeConversion(listing.sizeValue, listing.sizeUnit).secondary ?? "Size"
+                        : "Size"}
+                    </p>
                   </div>
                 </div>
 

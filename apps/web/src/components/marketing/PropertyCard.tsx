@@ -14,6 +14,7 @@ export interface Property {
   promoTier?: string;
   tag: string;
   photoUrl?: string;
+  phone?: string;
 }
 
 export function PropertyCard({ id, price, title, location, verified, promoTier, tag, photoUrl }: Property) {

@@ -187,6 +187,9 @@ export class UsersService {
     });
   }
 
+  // Backs the public agent/agency profile page (§04/§11 of the platform
+  // blueprint) — active listings and recent reviews alongside the profile
+  // itself, so the page has something to show besides a bio.
   async getPublicDealerProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, role: 'DEALER' },
@@ -195,6 +198,7 @@ export class UsersService {
         name: true,
         avatarUrl: true,
         createdAt: true,
+        phone: true,
         dealerProfile: {
           select: {
             agencyName: true,
@@ -208,7 +212,23 @@ export class UsersService {
       },
     });
     if (!user) throw new NotFoundException('Dealer not found');
-    return user;
+
+    const [listings, reviews] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: { ownerId: userId, status: 'APPROVED' },
+        include: { photos: { orderBy: { order: 'asc' }, take: 1 } },
+        orderBy: [{ promoTier: 'desc' }, { createdAt: 'desc' }],
+        take: 20,
+      }),
+      this.prisma.review.findMany({
+        where: { dealerId: userId },
+        include: { customer: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    return { ...user, listings, reviews };
   }
 
   private async assertDealerProfile(userId: string) {

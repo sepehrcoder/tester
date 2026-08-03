@@ -52,6 +52,22 @@ export class ListingsService {
     return { totalListings, verifiedDealers, cities: cities.length };
   }
 
+  // "Browse by area" widget (§03/4 of the platform blueprint) — live counts
+  // per area within a city, grouped on the existing free-text area field
+  // (the Society/Phase/Block hierarchy this will eventually key off doesn't
+  // exist yet).
+  async areaCounts(city: string) {
+    const grouped = await this.prisma.listing.groupBy({
+      by: ['area'],
+      where: { status: 'APPROVED', city: { equals: city, mode: 'insensitive' } },
+      _count: { _all: true },
+      orderBy: { area: 'asc' },
+    });
+    return grouped
+      .map((g) => ({ area: g.area, count: g._count._all }))
+      .sort((a, b) => b.count - a.count);
+  }
+
   async search(query: SearchListingsDto) {
     const where = {
       status: 'APPROVED' as ListingStatus,
@@ -75,7 +91,10 @@ export class ListingsService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.listing.findMany({
         where,
-        include: { photos: { orderBy: { order: 'asc' }, take: 1 } },
+        include: {
+          photos: { orderBy: { order: 'asc' }, take: 1 },
+          owner: { select: { phone: true } },
+        },
         // promoTier desc relies on Postgres enum declaration order
         // (STANDARD < FEATURED < PREMIUM) to rank paid placements first.
         orderBy: [{ promoTier: 'desc' }, { createdAt: 'desc' }],
